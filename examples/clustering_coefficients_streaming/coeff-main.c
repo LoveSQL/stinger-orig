@@ -285,7 +285,7 @@ main (const int argc, char *argv[])
 
     for (int actk = 0; actk < nbatch; ++actk, ++ntrace) {
       double t;
-      double global_delta, mld = 0.0, gd = 0.0;
+      double global_delta;
       int64_t delta_global_ntri = 0, naffected = 0;
       int changed;
 
@@ -307,9 +307,9 @@ main (const int argc, char *argv[])
         if (changed && i != j) {
           sorted_update_tris (-1, S, i, j, &naffected, &affected[0],
                               &ntri[0], &delta_global_ntri, gather_work);
-          mld = simple_update_local_cc (S, naffected, affected, ntri,
+          simple_update_local_cc (S, naffected, affected, ntri,
                                         &local_cc[0]);
-          gd = simple_update_global_cc (S, i, j, delta_global_ntri,
+          simple_update_global_cc (S, i, j, delta_global_ntri,
                                         &global_cc,
                                         &global_ntri, &global_degsum);
         }
@@ -324,9 +324,9 @@ main (const int argc, char *argv[])
         if (changed && i != j) {
           sorted_update_tris (1, S, i, j, &naffected, &affected[0],
                               &ntri[0], &delta_global_ntri, gather_work);
-          mld = simple_update_local_cc (S, naffected, affected, ntri,
+          simple_update_local_cc (S, naffected, affected, ntri,
                                         &local_cc[0]);
-          gd = simple_update_global_cc (S, i, j, delta_global_ntri,
+          simple_update_global_cc (S, i, j, delta_global_ntri,
                                         &global_cc,
                                         &global_ntri, &global_degsum);
         }
@@ -350,7 +350,6 @@ main (const int argc, char *argv[])
       const int endact = (actno + batch_size > naction ?
                           naction : actno + batch_size);
       int nact = 2 * (endact - actno);
-      double mld = 0.0, gd = 0.0;
       int64_t delta_global_ntri = 0;
 
       /*
@@ -514,14 +513,13 @@ main (const int argc, char *argv[])
                                      &ntri[0], &delta_global_ntri);
           }
 
-        mld = simple_update_local_cc (S, naffected, affected, ntri,
+        simple_update_local_cc (S, naffected, affected, ntri,
                                       &local_cc[0]);
 
         OMP ("omp single") {
           global_ntri += delta_global_ntri;
           double new_global_cc =
             (global_degsum ? global_ntri / (double) global_degsum : 0.0);
-          gd = global_cc - new_global_cc;
           global_cc = new_global_cc;
         }
 

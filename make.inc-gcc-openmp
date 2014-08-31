@@ -1,4 +1,8 @@
 CC=gcc -std=gnu9x
 CXX=g++
 CFLAGS=-fopenmp -g -O2
-LDLIBS=-lm -lrt
+LDLIBS=-lm 
+ifeq ($(shell uname -s),Darwin)
+else
+  LDLIBS+= -lrt
+endif

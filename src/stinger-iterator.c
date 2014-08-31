@@ -459,6 +459,7 @@ stinger_iterator_next_block_by_vtx(stinger_iterator_t * iter) {
       }
     }
   }
+  return -1;
 }
 
 int

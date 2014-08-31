@@ -10,9 +10,7 @@
 
 #define STATS_INIT()							\
   do {									\
-    init_timer ();							\
     printf ("{\n");							\
-    printf ("\t\"timer_res\": %20.15e,", timer_getres ());		\
   } while (0)
 
 #define STATS_END() do { printf ("\n}\n"); } while (0)
@@ -105,6 +103,8 @@ void bucket_sort_pairs (int64_t *array, size_t num);
 void radix_sort_pairs (int64_t *x, int64_t length, int64_t numBits);
 
 int64_t bs64 (int64_t xin);
+
+void bs64_n (size_t n, int64_t * restrict d);
 
 int i64_cmp (const void *a, const void *b);
 

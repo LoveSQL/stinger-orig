@@ -434,7 +434,6 @@ main (int argc, char **argv)
   parse_args (argc, argv);
   open_output_files ();
   init_urandom ();
-  init_timer ();
 
   nv = ((int64_t) 1) << scale;
   printf ("nv: %d\n", (int) nv);

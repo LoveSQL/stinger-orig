@@ -83,7 +83,6 @@ bfs_stinger (const struct stinger *G, const int64_t nv, const int64_t ne,
   int64_t nQ, Qnext, Qstart, Qend;
   int64_t w_start;
 
-  int64_t d_phase;
 
   MTA ("mta assert nodep")
     for (j = 0; j < nv; j++) {
@@ -103,7 +102,6 @@ bfs_stinger (const struct stinger *G, const int64_t nv, const int64_t ne,
 
   /* Execute the nested loop for each node v on the Q AND
      for each neighbor w of v  */
-  d_phase = nQ;
   Qstart = QHead[nQ - 1];
   Qend = QHead[nQ];
   w_start = 0;
@@ -269,7 +267,6 @@ bfs_csr (const int64_t nv, const int64_t ne, const int64_t * off,
   int64_t j, k, s;
   int64_t nQ, Qnext, Qstart, Qend;
 
-  int64_t d_phase;
 
   MTA ("mta assert nodep")
     for (j = 0; j < nv; j++) {
@@ -289,7 +286,6 @@ bfs_csr (const int64_t nv, const int64_t ne, const int64_t * off,
 
   /* Execute the nested loop for each node v on the Q AND
      for each neighbor w of v  */
-  d_phase = nQ;
   Qstart = QHead[nQ - 1];
   Qend = QHead[nQ];
 

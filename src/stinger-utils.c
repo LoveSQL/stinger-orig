@@ -143,7 +143,7 @@ bs64 (int64_t xin)
   return x;
 }
 
-static void
+void
 bs64_n (size_t n, int64_t * restrict d)
 {
   OMP ("omp parallel for")
@@ -213,7 +213,7 @@ snarf_graph (const char *initial_graph_name,
 
   if (sz % sizeof (*mem)) {
     fprintf (stderr,
-             "graph file size is not a multiple of sizeof (int64_t): \n", sz);
+             "graph file size is not a multiple of sizeof (int64_t): %ld\n", (long)sz);
     abort ();
   }
 
@@ -1192,6 +1192,9 @@ prefix_sum (const int64_t n, int64_t *ary)
   int nt, tid;
   int64_t slice_begin, slice_end, t1, k, tmp;
 
+  if (n < 1) return 0;
+  if (n == 1) return ary[0];
+
   nt = omp_get_num_threads ();
   tid = omp_get_thread_num ();
 
@@ -1237,6 +1240,8 @@ MTA("mta inline")
 int64_t
 prefix_sum (const int64_t n, int64_t *ary)
 {
+  if (n < 1) return 0;
+  if (n == 1) return ary[0];
   for (int64_t k = 1; k < n; ++k) {
     ary[k] += ary[k-1];
   }

@@ -10,6 +10,8 @@
 #define XMTI    
 #define const   
 
+%include "doxy/doxy.i"
+
 /* TRICKY STDINT STUFF */
 %include <swigarch.i>
 

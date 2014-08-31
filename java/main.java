@@ -1,4 +1,5 @@
 import java.util.Random;
+import stinger.*;
 
 public class main {
   static {

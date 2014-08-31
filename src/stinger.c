@@ -429,7 +429,7 @@ stinger_consistency_check (struct stinger *S, uint64_t NV)
     {
       if (ind[j] == k)
 	count_self++;
-      if (ind[j] == ind[j+1] && j < myEnd-1)
+      if (j < myEnd-1 && ind[j] == ind[j+1])
 	count_duplicate++;
     }
   }
@@ -666,14 +666,10 @@ new_blk_ebs (eb_index_t *out, const struct stinger *restrict G,
 
 /* }}} */
 
-/* TODO XXX Clean, remove realloc */
 MTA ("mta inline")
 void
 push_ebs (struct stinger *G, size_t neb,
           eb_index_t * restrict eb)
-/* XXX: Reallocing here will nuke current readers *AND* writers.
-   A DCAS could save the writers, but we need RCU-like machinery
-   for readers. */
 {
   int64_t etype, place;
   assert (G);
@@ -957,8 +953,8 @@ stinger_incr_edge (struct stinger *G,
 	    }
 	  }
 	}
-	block_ptr = &(tmp->next);
       }
+      block_ptr = &(tmp->next);
     }
 
     /* 3: Needs a new block to be inserted at end of list. */
@@ -1090,6 +1086,7 @@ stinger_remove_edge (struct stinger *G,
       }
     }
   }
+  return -1;
 }
 
 /** @brief Removes an undirected edge.
@@ -1276,10 +1273,10 @@ stinger_set_initial_edges (struct stinger *G,
          list holding all the blocks of edges of EType from vertex
          v.  Insert into the graph.  */
 
-      if (blkoff[v] != blkoff[v + 1])
+      if (blkoff[v] != blkoff[v + 1]) {
+	ebpool[block[blkoff[v+1]-1]].next = LVA[from].edges;
         LVA[from].edges = block[blkoff[v]];
-      else
-        LVA[from].edges = 0;
+      } 
     }
 
   /* Insert into the edge type array */
@@ -1786,333 +1783,256 @@ stinger_remove_all_edges_of_type (struct stinger *G, int64_t type)
   }
 }
 
+const int64_t endian_check = 0x1234ABCD;
 /** @brief Checkpoint a STINGER data structure to disk.
- *
- *  Creates a directory if needed and stores the graph as individual adjacency files in directory
- *  for parallelism / no need for extra buffers.
- *  Format:
- *  endian_check -> 64-bit endianness file
- *  nv -> 64-bit max vertex ID
- *  0 .. maxVtx -> 64-bit outdegree followed by adjacencies of vertex 0 stored as 5-tuples 
- *     (type, dest, weight, timefirst, timerecent)
- *
- *  @param S The STINGER data structure
- *  @param maxVtx Largest logical vertex ID + 1
- *  @param stingerfiledir String containing the name of the directory to store the checkpoint files in
- *  @return 0 on success; -1 if error
+ *  Format (64-bit words):
+ *    - endianness check
+ *    - max NV (max vertex ID + 1)
+ *    - number of edge types
+ *    - type offsets (length = etypes + 1) offsets of the beginning on each type in the CSR structure
+ *    - offsets (length = etypes * (maxNV+2)) concatenated CSR offsets, one NV+2-array per edge type
+ *    - ind/adj (legnth = type_offsets[etypes] = total number of edges) concatenated CSR adjacency arrays, 
+ *		      offsets into this are type_offsets[etype] + offets[etype*(maxNV+2) + sourcevertex]
+ *    - weight (legnth = type_offsets[etypes] = total number of edges) concatenated csr weight arrays, 
+ *		      offsets into this are type_offsets[etype] + offets[etype*(maxnv+2) + sourcevertex]
+ *    - time first (legnth = type_offsets[etypes] = total number of edges) concatenated csr timefirst arrays, 
+ *		      offsets into this are type_offsets[etype] + offets[etype*(maxnv+2) + sourcevertex]
+ *    - time recent (legnth = type_offsets[etypes] = total number of edges) concatenated csr time recent arrays, 
+ *		      offsets into this are type_offsets[etype] + offets[etype*(maxnv+2) + sourcevertex]
+ * @param S A pointer to the Stinger to be saved.
+ * @param maxVtx The maximum vertex ID + 1.
+ * @param stingerfile The path and name of the output file.
+ * @return 0 on success, -1 on failure.
  */
 int
-stinger_save_to_file (struct stinger * S, uint64_t maxVtx, const char * stingerfiledir)
+stinger_save_to_file (struct stinger * S, uint64_t maxVtx, const char * stingerfile)
 {
-   /* TODO: 
-   * - XMT testing / code
-   * - Performance / size tweaks (this is a rough first run)
-   */
+#define tdeg(X,Y) offsets[((X) * (maxVtx+2)) + (Y+2)]
 
-#if !defined(__MTA__)
-  if(stinger_consistency_check(S, maxVtx)) {
-    fprintf(stderr, "WARNING: Stinger is inconsistent before writing to disk.\n");
-  }
+  uint64_t * restrict offsets = xcalloc((maxVtx+2) * STINGER_NUMETYPES, sizeof(uint64_t));
 
-  mkdir(stingerfiledir, S_IRWXU | S_IRWXG | S_IROTH);
-
-  if(chdir(stingerfiledir)) {
-    fprintf(stderr, "ERROR: Directory creating / cd Failed.\n");
-    return -1;
-  }
-
-  struct dirent **names;
-  int64_t n = scandir(".", &names, 0, alphasort);
-  if(n >= 0) {
-    while(n--) {
-      if(names[n]->d_type == DT_REG)
-	unlink(names[n]->d_name);
-      free(names[n]);
-    }
-  }
-  free(names);
-
-  {
-    const int64_t endian_check = 0x1234ABCD;
-    FILE * f_endianness = fopen("endian_check", "w"); 
-    if(!f_endianness) {
-      fprintf(stderr, "ERROR: Creating endianness failed.\n");
-      return -1;
-    }
-    if(1 != fwrite(&endian_check, sizeof(int64_t), 1, f_endianness)) {
-      fprintf(stderr, "ERROR: Writing endianness failed.\n");
-      return -1;
-    }
-    fclose(f_endianness);
-  }
-
-  {
-    FILE * f_nv = fopen("nv", "w"); 
-    if(!f_nv || 1 != fwrite(&maxVtx, sizeof(int64_t), 1, f_nv)) {
-      fprintf(stderr, "ERROR: Writing NV failed.\n");
-      return -1;
-    }
-    fclose(f_nv);
-  }
-
-  uint64_t error = 0;
-
-  OMP("omp parallel for")
-  for(uint64_t i = 0; i < maxVtx; i++) {
-    uint64_t outDegree = stinger_outdegree(S, i);
-    if(outDegree) {
-      char filename[256];
-      sprintf(filename, "%lu", i);
-      FILE * f_curvtx = fopen(filename, "w");
-      if(!f_curvtx || 1 != fwrite(&outDegree, sizeof(uint64_t), 1, f_curvtx)) {
-	fprintf(stderr, "ERROR: Writing %lu outdegree failed.\n", i);
-	error = -1;
-      } else {
-	uint64_t value = stinger_vweight(S, i);
-	if(1 != fwrite(&value, sizeof(uint64_t), 1, f_curvtx)) {
-	  fprintf(stderr, "ERROR: Writing %lu vweight failed.\n", i);
-	  error = -1;
-	}
-	value = stinger_vtype(S, i);
-	if(1 != fwrite(&value, sizeof(uint64_t), 1, f_curvtx)) {
-	  fprintf(stderr, "ERROR: Writing %lu vtype failed.\n", i);
-	  error = -1;
-	}
-	STINGER_FORALL_EDGES_OF_VTX_BEGIN(S, i) {
-	  if(1 != fwrite(&(STINGER_EDGE_TYPE), sizeof(uint64_t), 1, f_curvtx)) {
-	    fprintf(stderr, "ERROR: Writing %lu type failed.\n", i);
-	    error = -1;
-	  }
-	  if(1 != fwrite(&(STINGER_EDGE_DEST), sizeof(uint64_t), 1, f_curvtx)) {
-	    fprintf(stderr, "ERROR: Writing %lu dest failed.\n", i);
-	    error = -1;
-	  }
-	  if(1 != fwrite(&(STINGER_EDGE_WEIGHT), sizeof(uint64_t), 1, f_curvtx)) {
-	    fprintf(stderr, "ERROR: Writing %lu weight failed.\n", i);
-	    error = -1;
-	  }
-	  if(1 != fwrite(&(STINGER_EDGE_TIME_FIRST), sizeof(uint64_t), 1, f_curvtx)) {
-	    fprintf(stderr, "ERROR: Writing %lu timefirst failed.\n", i);
-	    error = -1;
-	  }
-	  if(1 != fwrite(&(STINGER_EDGE_TIME_RECENT), sizeof(uint64_t), 1, f_curvtx)) {
-	    fprintf(stderr, "ERROR: Writing %lu timerecent failed.\n", i);
-	    error = -1;
-	  }
-	} STINGER_FORALL_EDGES_OF_VTX_END();
-	fclose(f_curvtx);
+  for(int64_t type = 0; type < STINGER_NUMETYPES; type++) {
+    struct stinger_eb * local_ebpool = ebpool;
+    OMP("omp parallel for")
+    MTA("mta assert parallel")
+    for(uint64_t block = 0; block < S->ETA[type].high; block++) {
+      struct stinger_eb * cureb = local_ebpool + S->ETA[type].blocks[block];
+      int64_t num = cureb->numEdges;
+      if (num) {
+	stinger_int64_fetch_add(&tdeg(type,cureb->vertexID), num);
       }
     }
   }
-  if(chdir("..")) {
-    fprintf(stderr, "ERROR: Returning to parent.\n");
-    error = -1;
+
+  for(int64_t type = 0; type < STINGER_NUMETYPES; type++) {
+    prefix_sum(maxVtx+2, offsets + (type * (maxVtx+2)));
   }
 
-  return error;
-#endif
-}
+  uint64_t * restrict type_offsets = xmalloc((STINGER_NUMETYPES+1) * sizeof(uint64_t));
 
-#define EBSTACK_NEW(X, V) \
-  int64_t ebstack_top = 0; \
-  int64_t ebstack_size = X;\
-  eb_index_t * ebstack = xmalloc(X * sizeof(eb_index_t)); \
-  new_ebs(ebstack, X, 0, V);
+  type_offsets[0] = 0;
+  for(int64_t type = 0; type < STINGER_NUMETYPES; type++) {
+    type_offsets[type+1] = offsets[type * (maxVtx + 2) + (maxVtx + 1)] + type_offsets[type];
+  }
 
-#define EBSTACK_POP(Y, V) \
-  if(ebstack_top == ebstack_size) { \
-    push_ebs(*S, ebstack_size, ebstack); \
-    ebstack_size = 1; \
-    ebstack_top = 0;  \
-    new_ebs(ebstack, 1, 0, V);  \
-  } \
-  Y = ebstack[ebstack_top++];
+  int64_t * restrict ind = xmalloc(4 * type_offsets[STINGER_NUMETYPES] * sizeof(int64_t));
+  int64_t * restrict weight = ind + type_offsets[STINGER_NUMETYPES];
+  int64_t * restrict timefirst = weight + type_offsets[STINGER_NUMETYPES];
+  int64_t * restrict timerecent = timefirst + type_offsets[STINGER_NUMETYPES];
 
-#define EBSTACK_FREE() \
-  push_ebs(*S, ebstack_size, ebstack); \
-  free(ebstack);
+#undef tdeg
+#define tdeg(X,Y) offsets[((X) * (maxVtx+2)) + (Y+1)]
 
-/* TODO XXX BUG push_ebs won't work with the ebstack correctly here since
- * ebs in the stack can be different types */
-/** @brief Restores a STINGER checkpoint from disk.
- *
- *  Reads STINGER checkpoint files from disk and reconstructs the STINGER data structure
- *  according to their contents.
- *
- *  @param stingerfiledir Directory name containing the STINGER checkpoint files
- *  @param S STINGER data structure to restore into
- *  @param maxVtx Largest logical vertex ID + 1
- *  @return 0 on success; -1 if error 
- */
-int
-stinger_open_from_file (const char * stingerfiledir, struct stinger ** S, uint64_t * maxVtx)
-{
+  for(int64_t type = 0; type < STINGER_NUMETYPES; type++) {
+    struct stinger_eb * local_ebpool = ebpool;
+    OMP("omp parallel for")
+    MTA("mta assert parallel")
+    for(uint64_t block = 0; block < S->ETA[type].high; block++) {
+      struct stinger_eb * cureb = local_ebpool + S->ETA[type].blocks[block];
+      int64_t num = cureb->numEdges;
+      if (num) {
+	int64_t my_off = stinger_int64_fetch_add(&tdeg(type,cureb->vertexID),num) + type_offsets[type];
+	int64_t stop = my_off + num;
+	for(uint64_t k = 0; k < stinger_eb_high(cureb) && my_off < stop; k++) {
+	  if(!stinger_eb_is_blank(cureb, k)) {
+	    ind[my_off] = stinger_eb_adjvtx(cureb,k);
+	    weight[my_off] = stinger_eb_weight(cureb,k);
+	    timefirst[my_off] = stinger_eb_first_ts(cureb,k);
+	    timerecent[my_off] = stinger_eb_ts(cureb,k);
+	    my_off++;
+	  }
+	}
+      }
+    }
+  }
+#undef tdeg
 
 #if !defined(__MTA__)
-  *S = NULL;
-  if(chdir(stingerfiledir)) {
-    fprintf(stderr, "ERROR: Changing to directory.\n");
-    *S = NULL;
+  FILE * fp = fopen(stingerfile, "wb");
+
+  if(!fp) {
+    fprintf (stderr, "%s %d: Can't open file \"%s\" for writing\n", __func__, __LINE__, stingerfile);
+    free(offsets); free(type_offsets); free(ind);
     return -1;
   }
-  int64_t endian_check = 0x1234ABCD;
-  {
-    FILE * f_endianness = fopen("endian_check", "r");
-    int64_t endian_input;
-    if(!f_endianness || 1 != fread(&endian_input, sizeof(int64_t), 1, f_endianness)) {
-      fprintf(stderr, "ERROR: Can't read endianness file.\n");
-      *S = NULL;
-      return -1;
-    }
-    endian_check = endian_check != endian_input;
+
+  int64_t etypes = STINGER_NUMETYPES;
+  int64_t written = 0;
+
+  written += fwrite(&endian_check, sizeof(int64_t), 1, fp);
+  written += fwrite(&maxVtx, sizeof(int64_t), 1, fp);
+  written += fwrite(&etypes, sizeof(int64_t), 1, fp);
+  written += fwrite(type_offsets, sizeof(int64_t), etypes+1, fp);
+  written += fwrite(offsets, sizeof(int64_t), (maxVtx+2) * etypes, fp);
+  written += fwrite(ind, sizeof(int64_t), 4 * type_offsets[etypes], fp);
+
+  for(uint64_t v = 0; v < maxVtx; v++) {
+    int64_t vdata[2];
+    vdata[0] = stinger_vtype(S,v);
+    vdata[1] = stinger_vweight(S,v);
+    fwrite(vdata, sizeof(int64_t), 2, fp);
   }
 
-  {
-    FILE * f_nv = fopen("nv", "r");
-    if(!f_nv || 1 != fread(maxVtx, sizeof(int64_t), 1, f_nv)) {
-      fprintf(stderr, "ERROR: Can't read maxvtx file.\n");
-      *S = NULL;
-      return -1;
-    }
-    if(endian_check) {
-      *maxVtx = bs64(*maxVtx);
-    }
+  fclose(fp);
+#else
+  xmt_luc_io_init();
+  int64_t etypes = STINGER_NUMETYPES;
+  int64_t written = 0;
+  size_t sz = (3 + etypes + 1 + (maxVtx+2) * etypes + 4 * type_offsets[etypes]) * sizeof(int64_t);
+  int64_t * xmt_buf = xmalloc (sz);
+  xmt_buf[0] = endian_check;
+  xmt_buf[1] = maxVtx;
+  xmt_buf[2] = etypes;
+  for (int64_t i = 0; i < etypes+1; i++) {
+    xmt_buf[3+i] = type_offsets[i];
   }
+  for (int64_t i = 0; i < (maxVtx+2) * etypes; i++) {
+    xmt_buf[3+etypes+1+i] = offsets[i];
+  }
+  for (int64_t i = 0; i < 4 * type_offsets[etypes]; i++) {
+    xmt_buf[3+etypes+1+(maxVtx+2)*etypes+i] = ind[i];
+  }
+  xmt_luc_snapout(stingerfile, xmt_buf, sz);
+  written = sz;
+  free(xmt_buf);
+#endif
+
+  if(written != (3 + etypes + 1 + (maxVtx+2) * etypes + 4 * type_offsets[etypes]) * sizeof(int64_t)) {
+    free(offsets); free(type_offsets); free(ind);
+    return -1;
+  } else {
+    free(offsets); free(type_offsets); free(ind);
+    return 0;
+  }
+}
+
+/** @brief Restores a STINGER checkpoint from disk.
+ * @param stingerfile The path and name of the input file.
+ * @param S A double pointer to outpute the new Stinger.
+ * @param maxVtx Output pointer for the the maximum vertex ID + 1.
+ * @return 0 on success, -1 on failure.
+*/
+int
+stinger_open_from_file (const char * stingerfile, struct stinger ** S, uint64_t * maxVtx)
+{
+#if !defined(__MTA__)
+  FILE * fp = fopen(stingerfile, "rb");
+
+  if(!fp) {
+    fprintf (stderr, "%s %d: Can't open file \"%s\" for reading\n", __func__, __LINE__, stingerfile);
+    return -1;
+  }
+#endif
 
   *S = stinger_new();
 
-  int error = 0;
-  OMP("omp parallel for")
-  for(uint64_t i = 0; i < *maxVtx; i++) {
-    char filename[256];
-    sprintf(filename, "%lu", i);
-    FILE * f_curvtx = fopen(filename, "r");
-    if(f_curvtx) {
-      uint64_t outDegree;
-      if(1 != fread(&outDegree, sizeof(int64_t), 1, f_curvtx)) {
-	fprintf(stderr, "ERROR: Can't read %lu file.\n", i);
-	error = -1;
-      }
-      if(endian_check) {
-	outDegree = bs64(outDegree);
-      }
-      uint64_t value = 0;
-      if(1 != fread(&value, sizeof(int64_t), 1, f_curvtx)) {
-	fprintf(stderr, "ERROR: Can't read %lu vweight file.\n", i);
-	error = -1;
-      }
-      if(endian_check) {
-	value = bs64(value);
-      }
-      stinger_set_vweight(*S, i, value);
-      if(1 != fread(&value, sizeof(int64_t), 1, f_curvtx)) {
-	fprintf(stderr, "ERROR: Can't read %lu vtype file.\n", i);
-	error = -1;
-      }
-      if(endian_check) {
-	value = bs64(value);
-      }
-      stinger_set_vtype(*S, i, value);
-      EBSTACK_NEW((outDegree + STINGER_EDGEBLOCKSIZE - 1) / STINGER_EDGEBLOCKSIZE, i);
-      int64_t type, dest, weight, tfirst, trecent;
-      int read;
-      EBSTACK_POP((*S)->LVA[i].edges, i);
-      struct stinger_eb * curblock = ebpool + (*S)->LVA[i].edges;
-      while((read = fread(&type, sizeof(uint64_t), 1, f_curvtx)) != 0) {
-	if(curblock->high == STINGER_EDGEBLOCKSIZE) {
-	  EBSTACK_POP(eb_index_t nextblock, i);
-	  curblock->next = nextblock;
-	  curblock = ebpool + nextblock;
-	}
-
-	if(endian_check) {
-	  type = bs64(type);
-	}
-	// handle type
-	if(!curblock->numEdges) {
-	  curblock->etype = type;
-	} else {
-	  if(curblock->etype != type) {
-	    EBSTACK_POP(eb_index_t nextblock, i);
-	    curblock->next = nextblock;
-	    curblock = ebpool + nextblock;
-	    curblock->etype = type;
-	  }
-	}
-
-	if(1 != fread(&dest, sizeof(uint64_t), 1, f_curvtx)) {
-	  fprintf(stderr, "ERROR: Can't read %lu. Unexpected end\n", i);
-	  error = -1;
-	}
-	if(endian_check) {
-	  dest = bs64(dest);
-	  curblock->etype = type;
-	} else {
-	  if(curblock->etype != type) {
-	    EBSTACK_POP(eb_index_t nextblock, i);
-	    curblock->next = nextblock;
-	    curblock = ebpool + nextblock;
-	    curblock->etype = type;
-	  }
-	}
-
-	if(1 != fread(&dest, sizeof(uint64_t), 1, f_curvtx)) {
-	  fprintf(stderr, "ERROR: Can't read %lu. Unexpected end\n", i);
-	  error = -1;
-	}
-	if(endian_check) {
-	  dest = bs64(dest);
-	}
-	if(1 != fread(&weight, sizeof(uint64_t), 1, f_curvtx)) {
-	  fprintf(stderr, "ERROR: Can't read %lu. Unexpected end\n", i);
-	  error = -1;
-	}
-	if(endian_check) {
-	  weight = bs64(weight);
-	}
-	if(1 != fread(&tfirst, sizeof(uint64_t), 1, f_curvtx)) {
-	  fprintf(stderr, "ERROR: Can't read %lu. Unexpected end\n", i);
-	  error = -1;
-	}
-	if(endian_check) {
-	  tfirst= bs64(tfirst);
-	}
-	if(1 != fread(&trecent, sizeof(uint64_t), 1, f_curvtx)) {
-	  fprintf(stderr, "ERROR: Can't read %lu. Unexpected end\n", i);
-	  error = -1;
-	}
-	if(endian_check) {
-	  trecent = bs64(trecent);
-	}
-	stinger_int64_fetch_add(&((*S)->LVA[i].outDegree), 1);
-	stinger_int64_fetch_add(&((*S)->LVA[dest].inDegree), 1);
-	curblock->edges[curblock->high].neighbor = dest;
-	curblock->edges[curblock->high].weight = weight;
-	curblock->edges[curblock->high].timeFirst = tfirst;
-	curblock->edges[curblock->high].timeRecent = trecent;
-	if(curblock->smallStamp > tfirst)
-	  curblock->smallStamp = tfirst;
-	if(curblock->largeStamp < trecent)
-	  curblock->largeStamp = trecent;
-	curblock->numEdges++;
-	curblock->high++;
-
-      }
-      fclose(f_curvtx);
-      EBSTACK_FREE();
-    }
-  }
-
-  if(chdir("..")) {
-    fprintf(stderr, "ERROR: Returning to parent.\n");
-    error = -1;
-  }
-  return error;
-  if(error)
-    return error;
-  else
-    return stinger_consistency_check(*S, *maxVtx);
-
+  int64_t local_endian;
+  int64_t etypes = 0;
+#if !defined(__MTA__)
+  if(!fread(&local_endian, sizeof(int64_t), 1, fp)) { return -1; }
+  if(!fread(maxVtx, sizeof(int64_t), 1, fp)) { return -1; }
+  if(!fread(&etypes, sizeof(int64_t), 1, fp)) { return -1; }
+#else
+  xmt_luc_io_init();
+  size_t sz;
+  xmt_luc_stat(stingerfile, &sz);
+  int64_t * xmt_buf = (int64_t *) xmalloc (sz);
+  xmt_luc_snapin(stingerfile, xmt_buf, sz);
+  local_endian = xmt_buf[0];
+  *maxVtx = xmt_buf[1];
+  etypes = xmt_buf[2];
 #endif
+
+  if(local_endian != endian_check) {
+    *maxVtx = bs64(*maxVtx);
+    etypes = bs64(etypes);
+  }
+
+  if(*maxVtx > STINGER_MAX_LVERTICES) {
+    fprintf (stderr, "%s %d: Vertices in file \"%s\" larger than STINGER_MAX_LVERTICES\n", __func__, __LINE__, stingerfile);
+    return -1;
+  }
+  if(etypes > STINGER_NUMETYPES) {
+    fprintf (stderr, "%s %d: Edge types in file \"%s\" larger than STINGER_NUMETYPES\n", __func__, __LINE__, stingerfile);
+    return -1;
+  }
+
+#if !defined(__MTA__)
+  uint64_t * restrict offsets = xcalloc((*maxVtx+2) * etypes, sizeof(uint64_t));
+  uint64_t * restrict type_offsets = xmalloc((etypes+1) * sizeof(uint64_t));
+
+  if(!fread(type_offsets, sizeof(int64_t), etypes+1, fp)) { return -1; }
+  if(!fread(offsets, sizeof(int64_t), (*maxVtx+2) * etypes, fp)) { return -1; }
+#else
+  uint64_t * restrict type_offsets = &xmt_buf[3];
+  uint64_t * restrict offsets = type_offsets + etypes+1;
+#endif
+
+  if(local_endian != endian_check) {
+    bs64_n(etypes + 1, type_offsets);
+    bs64_n(*maxVtx + 2, offsets);
+  }
+
+#if !defined(__MTA__)
+  int64_t * restrict ind = xmalloc(4 * type_offsets[etypes] * sizeof(int64_t));
+  int64_t * restrict weight = ind + type_offsets[etypes];
+  int64_t * restrict timefirst = weight + type_offsets[etypes];
+  int64_t * restrict timerecent = timefirst + type_offsets[etypes];
+  if(!fread(ind, sizeof(int64_t), 4 * type_offsets[etypes], fp)) { return -1; }
+#else
+  int64_t * restrict ind = offsets + (*maxVtx+2)*etypes;
+  int64_t * restrict weight = ind + type_offsets[etypes];
+  int64_t * restrict timefirst = weight + type_offsets[etypes];
+  int64_t * restrict timerecent = timefirst + type_offsets[etypes];
+#endif
+
+  if(local_endian != endian_check) {
+    bs64_n(4 * type_offsets[etypes], ind);
+  }
+
+  for(int64_t type = 0; type < etypes; type++) {
+    stinger_set_initial_edges(*S, *maxVtx, type, 
+	offsets + type * (*maxVtx+2),
+	ind + type_offsets[type],
+	weight + type_offsets[type],
+	timerecent + type_offsets[type],
+	timefirst + type_offsets[type],
+	0);
+  }
+
+#if !defined(__MTA__)
+  for(uint64_t v = 0; v < *maxVtx; v++) {
+    int64_t vdata[2];
+    if(!fread(vdata, sizeof(int64_t), 2, fp)) { return -1; }
+    stinger_set_vtype(*S, v, vdata[0]);
+    stinger_set_vweight(*S, v, vdata[1]);
+  }
+
+  fclose(fp);
+  free(offsets); free(type_offsets); free(ind);
+#else
+  free(xmt_buf);
+#endif
+  return 0;
 }
 

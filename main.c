@@ -64,6 +64,7 @@ main (const int argc, char *argv[])
   S = stinger_new ();
   stinger_set_initial_edges (S, nv, 0, off, ind, weight, NULL, NULL, 0);
   PRINT_STAT_DOUBLE ("time_stinger", toc ());
+  PRINT_STAT_HEX64("consistency_check", (long unsigned int)stinger_consistency_check(S,nv));
   fflush (stdout);
 
   /* Serial connected components */

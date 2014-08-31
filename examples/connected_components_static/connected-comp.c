@@ -123,12 +123,10 @@ connected_components (const size_t nv, const size_t ne,
       int64_t stack[N];
 #endif
       int64_t my_root;
-      int64_t my_color = i + 1;
       int64_t top = -1;
       int64_t v, u;
 
       if (stinger_int64_fetch_add (marks + i, 1) == 0) {
-        my_color = i + 1;
         top = -1;
         my_root = i;
         push (my_root, stack, &top);
@@ -294,9 +292,9 @@ component_dist (const size_t nv, int64_t * restrict d,
   double average, avg_sq, variance, std_dev;
   int64_t i;
 
-  uint64_t max = 0, maxV = 0;
+  uint64_t max = 0;
 
-  OMP ("parallel for") MTA ("mta assert nodep")
+  OMP ("omp parallel for") MTA ("mta assert nodep")
     for (i = 0; i < nv; i++) {
       cardinality[i] = 0;
     }
@@ -325,7 +323,6 @@ component_dist (const size_t nv, int64_t * restrict d,
       if (tmp > max2)
         max2 = tmp;
     }
-  maxV = max2;
 
   average = (double) sum / numColors;
   avg_sq = (double) sum_sq / numColors;
@@ -398,13 +395,11 @@ connected_components_stinger (const struct stinger *S, const size_t nv,
       int64_t stack[N];
 #endif
       int64_t my_root;
-      int64_t my_color = i + 1;
       int64_t top = -1;
       int64_t v, u;
       int64_t deg_u;
 
       if (stinger_int64_fetch_add (marks + i, 1) == 0) {
-        my_color = i + 1;
         top = -1;
         my_root = i;
         push (my_root, stack, &top);

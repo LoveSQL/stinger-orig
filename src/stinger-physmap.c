@@ -92,16 +92,16 @@ insertIntoTree(stinger_physmap_t * map, tree_node_t ** node, char * string, uint
       return 2;
     }
   } else {
-    if(!(*node)->children[string[0]]) {
-      if(!stinger_ptr_cas((void **)&((*node)->children[string[0]]), NULL, MARKER)) {
-	(*node)->children[string[0]] = allocateTreeNode(map, *node, (*node)->depth+1, string[0]);
+    if(!(*node)->children[(int)string[0]]) {
+      if(!stinger_ptr_cas((void **)&((*node)->children[(int)string[0]]), NULL, MARKER)) {
+        (*node)->children[(int)string[0]] = allocateTreeNode(map, *node, (*node)->depth+1, string[0]);
       }
     }
-    if(!(*node)->children[string[0]]) {
+    if(!(*node)->children[(int)string[0]]) {
       return -1;
     }
-    while((*node)->children[string[0]] == MARKER) ;
-    (*node) = (*node)->children[string[0]];
+    while((*node)->children[(int)string[0]] == MARKER) ;
+    (*node) = (*node)->children[(int)string[0]];
     return insertIntoTree(map, node, ++string, --length);
   }
 }
@@ -160,7 +160,7 @@ uint64_t
 stinger_physmap_get_mapping (stinger_physmap_t * map, char * string, uint64_t length) {
   tree_node_t * cur = map->keyTree;
   while(length > 0 && cur) {
-    cur = cur->children[string[0]];
+    cur = cur->children[(int)string[0]];
     string++;
     length--;
   }
@@ -210,6 +210,7 @@ stinger_physmap_get_key (stinger_physmap_t * map, char ** outbuffer, uint64_t * 
 uint64_t
 stinger_physmap_remove_mapping (stinger_physmap_t * map, uint64_t vertexID) {
   printf("***TODO***\n");
+  return -1;
 }
 
 /* Independent test-driver code */

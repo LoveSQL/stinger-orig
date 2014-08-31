@@ -1,22 +1,16 @@
-#if !defined (TIMER_H_)
-#define TIMER_H_
+/* -*- mode: C; mode: folding; fill-column: 70; -*- */
+/* Copyright 2010,  Georgia Institute of Technology, USA. */
+/* See COPYING for license. */
+#if !defined(TIMER_HEADER_)
+#define TIMER_HEADER_
 
-void init_timer (void);
-double timer_getres (void);
+/** Start timing. */
 void tic (void);
+
+/** Return seconds since last tic. */
 double toc (void);
-void stats_tic (char *);
-void stats_toc (void);
-void print_stats ();
 
-struct stats {
-#if defined(__MTA__)
-  char statname[257];
-  int64_t clock, issues, concurrency, load, store, ifa;
-#else
-#endif
-};
+/** Macro to time a block. */
+#define TIME(timevar, what) do { tic (); what; timevar = toc(); } while (0)
 
-struct stats stats_tic_data, stats_toc_data;
-
-#endif /* TIMER_H_ */
+#endif /* TIMER_HEADER_ */

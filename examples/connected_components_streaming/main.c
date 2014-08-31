@@ -81,12 +81,12 @@ main (const int argc, char *argv[])
 
   tic ();
   load_graph_and_action_stream (initial_graph_name, &nv, &ne, (int64_t**)&off,
-	      (int64_t**)&ind, (int64_t**)&weight, (int64_t**)&graphmem,
-	      action_stream_name, &naction, (int64_t**)&action, (int64_t**)&actionmem);
+                                (int64_t**)&ind, (int64_t**)&weight, (int64_t**)&graphmem,
+                                action_stream_name, &naction, (int64_t**)&action, (int64_t**)&actionmem);
 
   print_initial_graph_stats (nv, ne, batch_size, nbatch, naction);
   BATCH_SIZE_CHECK();
-  
+
   ncomp = xcalloc (4*nv, sizeof(*ncomp));
   ncomp_end = &ncomp[nv];
   ncomp_init = &ncomp_end[nv];
@@ -107,14 +107,14 @@ main (const int argc, char *argv[])
     bitarray[k] = xmalloc(sizeof(int64_t) * (nv>>6));
   }
 #endif
-	
+
   /* activate threads */
   OMP("omp parallel for")
-  MTA("mta assert nodep")
-  for (int64_t k = 0; k < nv; ++k) {
-    ncomp[k] = -1;
-    ncompsize[k] = 0;
-  }
+    MTA("mta assert nodep")
+    for (int64_t k = 0; k < nv; ++k) {
+      ncomp[k] = -1;
+      ncompsize[k] = 0;
+    }
 
   /* Connected Components */
   tic ();
@@ -139,10 +139,10 @@ main (const int argc, char *argv[])
   memcpy (ncompsize, ncompsize_init, nv * sizeof (*ncompsize));
 #else
   MTA("mta use 100 streams")
-  for (size_t k = 0; k < nv; ++k) {
-    ncomp[k] = ncomp_init[k];
-    ncompsize[k] = ncompsize_init[k];
-  }
+    for (size_t k = 0; k < nv; ++k) {
+      ncomp[k] = ncomp_init[k];
+      ncompsize[k] = ncompsize_init[k];
+    }
 #endif
   num_comp = num_comp_init;
 
@@ -157,7 +157,7 @@ main (const int argc, char *argv[])
   num_comp = connected_components_stinger(S, nv, ne, ncomp, NULL, NULL, NULL, NULL, NULL);
   PRINT_STAT_DOUBLE ("time_components_stinger", toc() );
   PRINT_STAT_INT64 ("number_components", num_comp);
-  
+
   tic();
   num_comp = connected_components_stinger_edge_parallel_and_tree(nv, ne, S, ncomp, NULL, tree);
   PRINT_STAT_DOUBLE ("time_components_tree", toc() );
@@ -176,7 +176,7 @@ main (const int argc, char *argv[])
 
   m1 = xmalloc (4 * batch_size * sizeof(int64_t));
   m2 = m1 + (2 * batch_size);
-	
+
   int64_t *neighbors = xmalloc(2 * ne * sizeof(int64_t));
 
   static size_t ntrace = 0;
@@ -227,9 +227,9 @@ main (const int argc, char *argv[])
 
 #if USE_BIT_ARRAY
     OMP("omp parallel for")
-    for (int64_t k = 0; k < nv; k++) {
-      marks[k] = 0;
-    }
+      for (int64_t k = 0; k < nv; k++) {
+        marks[k] = 0;
+      }
     zeros = 0;
     ones = 0;
 #endif
@@ -238,141 +238,141 @@ main (const int argc, char *argv[])
 
 #if USE_BIT_ARRAY
     MTA("mta assert nodep")
-    MTA("mta block schedule")
-    OMP("omp parallel for")
-    for (int k = actno; k < endact; k++) {
-      const int64_t i = ACTI(k);
-      const int64_t j = ACTJ(k);
-      if (i != j) {
+      MTA("mta block schedule")
+      OMP("omp parallel for")
+      for (int k = actno; k < endact; k++) {
+        const int64_t i = ACTI(k);
+        const int64_t j = ACTJ(k);
+        if (i != j) {
 #if SPAN_TREE_STATS
-	if(i < 0) {
-	  stinger_int64_fetch_add(&deletes_total, 1);
-	}
+          if(i < 0) {
+            stinger_int64_fetch_add(&deletes_total, 1);
+          }
 #endif
-	if (i < 0 && (tree[-i-1] == -j-1 || tree[-j-1] == -i-1)) {   // for deletions, create histogram of vertices involved
+          if (i < 0 && (tree[-i-1] == -j-1 || tree[-j-1] == -i-1)) {   // for deletions, create histogram of vertices involved
 #if SPAN_TREE_STATS
-	  stinger_int64_fetch_add(&deletes_in_tree, 1);
+            stinger_int64_fetch_add(&deletes_in_tree, 1);
 #endif
-	  if (stinger_int64_fetch_add(&marks[-i-1], 1)==0) {
-	    int64_t where = stinger_int64_fetch_add(&zeros, 1);
-	    bitarray_off[-i-1] = where;
-	  }
-	  if (stinger_int64_fetch_add(&marks[-j-1], 1)==0) {
-	    int64_t where = stinger_int64_fetch_add(&zeros, 1);
-	    bitarray_off[-j-1] = where;
-	  }
-	  int64_t where = stinger_int64_fetch_add(&ones, 2);
-	  assert(where < 2*batch_size);
-	  delA[where] = -i-1;
-	  delA[where+1] = -j-1;
-	} 
+            if (stinger_int64_fetch_add(&marks[-i-1], 1)==0) {
+              int64_t where = stinger_int64_fetch_add(&zeros, 1);
+              bitarray_off[-i-1] = where;
+            }
+            if (stinger_int64_fetch_add(&marks[-j-1], 1)==0) {
+              int64_t where = stinger_int64_fetch_add(&zeros, 1);
+              bitarray_off[-j-1] = where;
+            }
+            int64_t where = stinger_int64_fetch_add(&ones, 2);
+            assert(where < 2*batch_size);
+            delA[where] = -i-1;
+            delA[where+1] = -j-1;
+          }
+        }
       }
-    }
 #endif
 
     stinger_remove_and_insert_batch (S, 0, actno+1, N, insoff, deloff, act);
 
 #if USE_BIT_ARRAY
     OMP("omp parallel for")
-    for (int64_t k = 0; k < nv; k++) {
-      marks[k] = 0;
-    }
+      for (int64_t k = 0; k < nv; k++) {
+        marks[k] = 0;
+      }
 
     int64_t head = 0;
     /* Build bit arrays for each vertex with an incident deletion */
     MTA("mta assert nodep")
-    OMP("omp parallel for")
-    for (int64_t k = 0; k < ones; k+=2) {
-      const int64_t i = delA[k];
-      if (stinger_int64_fetch_add(&marks[i], 1)==0) {
-	int64_t off = bitarray_off[i];
-	assert(off < num_bit_arrays);
-	size_t d;
-	size_t deg_i = stinger_outdegree(S, i);
-	int64_t my_w = stinger_int64_fetch_add(&head, deg_i);
-	assert (my_w < 2*ne);
-	stinger_gather_typed_successors(S, 0, i, &d, &neighbors[my_w], deg_i);
-	assert (d == deg_i);
+      OMP("omp parallel for")
+      for (int64_t k = 0; k < ones; k+=2) {
+        const int64_t i = delA[k];
+        if (stinger_int64_fetch_add(&marks[i], 1)==0) {
+          int64_t off = bitarray_off[i];
+          assert(off < num_bit_arrays);
+          size_t d;
+          size_t deg_i = stinger_outdegree(S, i);
+          int64_t my_w = stinger_int64_fetch_add(&head, deg_i);
+          assert (my_w < 2*ne);
+          stinger_gather_typed_successors(S, 0, i, &d, &neighbors[my_w], deg_i);
+          assert (d == deg_i);
 
-	MTA("mta assert nodep")
-	for (int64_t p = 0; p < nv >> 6; p++) {
-	  bitarray[off][p] = 0;
-	}
+          MTA("mta assert nodep")
+            for (int64_t p = 0; p < nv >> 6; p++) {
+              bitarray[off][p] = 0;
+            }
 
-	MTA("mta assert nodep")
-	for (int64_t p = 0; p < deg_i; p++) {
-	  int64_t w = neighbors[my_w + p];
-	  int64_t word_offset = w >> 6;
-	  int64_t bit_offset = w & 0x3Fu;
-	  int64_t bit = ((uint64_t) 1) << bit_offset;
+          MTA("mta assert nodep")
+            for (int64_t p = 0; p < deg_i; p++) {
+              int64_t w = neighbors[my_w + p];
+              int64_t word_offset = w >> 6;
+              int64_t bit_offset = w & 0x3Fu;
+              int64_t bit = ((uint64_t) 1) << bit_offset;
 
-	  MTA("mta update")
-	  bitarray[off][word_offset] |= bit;
-	}
+              MTA("mta update")
+                bitarray[off][word_offset] |= bit;
+            }
+        }
       }
-    }
 
     /* Query time */
     head = 0;
     int64_t no = 0;
     MTA("mta assert nodep")
-    OMP("omp parallel for")
-    for (int64_t k = 0; k < ones; k+=2) {
-      const int64_t i = delA[k];
-      const int64_t j = delA[k+1];
-      int64_t off = bitarray_off[i];
-      size_t d;
-      size_t deg_j = stinger_outdegree(S, j);
-      int64_t my_w = stinger_int64_fetch_add(&head, deg_j);
-      assert (my_w < 2*ne);
-      stinger_gather_typed_successors(S, 0, j, &d, &neighbors[my_w], deg_j);
-      assert (d == deg_j);
+      OMP("omp parallel for")
+      for (int64_t k = 0; k < ones; k+=2) {
+        const int64_t i = delA[k];
+        const int64_t j = delA[k+1];
+        int64_t off = bitarray_off[i];
+        size_t d;
+        size_t deg_j = stinger_outdegree(S, j);
+        int64_t my_w = stinger_int64_fetch_add(&head, deg_j);
+        assert (my_w < 2*ne);
+        stinger_gather_typed_successors(S, 0, j, &d, &neighbors[my_w], deg_j);
+        assert (d == deg_j);
 
-      int64_t sum = 0;
-      for (int64_t p = 0; p < deg_j; p++) {
-	int64_t w = neighbors[my_w + p];
-	int64_t word_offset = w >> 6;
-	int64_t bit_offset = w & 0x3Fu;
-	int64_t bit = ((uint64_t) 1) << bit_offset;
+        int64_t sum = 0;
+        for (int64_t p = 0; p < deg_j; p++) {
+          int64_t w = neighbors[my_w + p];
+          int64_t word_offset = w >> 6;
+          int64_t bit_offset = w & 0x3Fu;
+          int64_t bit = ((uint64_t) 1) << bit_offset;
 
-	int64_t result = bitarray[off][word_offset] & bit;
-	sum += result;
-	if(result) {
-	  if(tree[i] == j && tree[w] != i)
-	    tree[i] = w;
-	  else if(tree[j] == i && tree[w] != j)
-	    tree[j] = w;
-	}
-      }
-      if (!sum) { 
-	stinger_int64_fetch_add(&no, 1);
-	if(tree[j] == i) {
-	  for(int64_t p = 0; p < deg_j; p++) {
-	    int64_t w = neighbors[my_w + p];
-	    while(tree[w] != w && w != i && w != j) w = tree[w];
-	    if(w == ncomp[j] || w == i) {
+          int64_t result = bitarray[off][word_offset] & bit;
+          sum += result;
+          if(result) {
+            if(tree[i] == j && tree[w] != i)
+              tree[i] = w;
+            else if(tree[j] == i && tree[w] != j)
+              tree[j] = w;
+          }
+        }
+        if (!sum) {
+          stinger_int64_fetch_add(&no, 1);
+          if(tree[j] == i) {
+            for(int64_t p = 0; p < deg_j; p++) {
+              int64_t w = neighbors[my_w + p];
+              while(tree[w] != w && w != i && w != j) w = tree[w];
+              if(w == ncomp[j] || w == i) {
 #if SPAN_TREE_STATS
-	      stinger_uint64_fetch_add(&deletes_in_tree_caught_climbing, 1);
+                stinger_uint64_fetch_add(&deletes_in_tree_caught_climbing, 1);
 #endif
-	      tree[j] = neighbors[my_w + p];
-	      break;
-	    }
-	  }
-	}
-      }
+                tree[j] = neighbors[my_w + p];
+                break;
+              }
+            }
+          }
+        }
 #if SPAN_TREE_STATS
-      else stinger_int64_fetch_add(&deletes_in_tree_caught_bitarrays, 1);
+        else stinger_int64_fetch_add(&deletes_in_tree_caught_bitarrays, 1);
 #endif
-    }
+      }
 #endif
 
 #if CHECK_ACCURACY
     connected_components_stinger_edge_parallel_and_tree(nv, ne, S, tempcomp, NULL, temptree);
     OMP("omp parallel for reduction(+:deletes_that_split)")
-    for (int64_t k = 0; k < ones; k+=2) {
-      if(tempcomp[delA[k]] != tempcomp[delA[k+1]])
-	deletes_that_split++;
-    }
+      for (int64_t k = 0; k < ones; k+=2) {
+        if(tempcomp[delA[k]] != tempcomp[delA[k+1]])
+          deletes_that_split++;
+      }
     printf("unnacounted deletes %ld deletes that sever an edge%ld\n", deletes_in_tree - deletes_in_tree_caught_bitarrays - deletes_in_tree_caught_climbing, deletes_that_split); fflush(stdout);
 #endif
 
@@ -385,46 +385,46 @@ main (const int argc, char *argv[])
       printf("num_comp = %ld\n", num_comp);
     }
     else
-    {
-      /* If we ran connected components above, we don't need to continue.
-	 Here we transform the insertions from vertices to their respective components. */
-      int64_t incr = 0;
+      {
+        /* If we ran connected components above, we don't need to continue.
+           Here we transform the insertions from vertices to their respective components. */
+        int64_t incr = 0;
 
-      MTA("mta assert nodep")
-      OMP("omp parallel for")
-      for (int k = 0; k < n; k++) {
-	const int64_t i = ACTI2(deloff[k]);
-	assert(i >= 0);
-	assert(i < nv);
-	int k2;
-	const int64_t ncompi = ncomp[i];
-	willchange[k] = ncompi;
-	
-	for (k2 = insoff[k]; k2 < deloff[k+1]; k2++) {
-	  assert(ACTJ2(k2) >= 0);
-	  assert(ACTJ2(k2) < nv);
-	  const int64_t ncompk = ncomp[ACTJ2(k2)];
-	  if (ncompk != ncompi) {
-	    int where = stinger_int64_fetch_add(&incr, 1);
-	    assert(where < 2*batch_size);
-	    m1[where] = ncompi;
-	    m2[where] = ncompk;
-	  }
-	}
-      }
+        MTA("mta assert nodep")
+          OMP("omp parallel for")
+          for (int k = 0; k < n; k++) {
+            const int64_t i = ACTI2(deloff[k]);
+            assert(i >= 0);
+            assert(i < nv);
+            int k2;
+            const int64_t ncompi = ncomp[i];
+            willchange[k] = ncompi;
 
-      num_comp = connected_components_edge(nv, incr, m1, m2, ncomp);
+            for (k2 = insoff[k]; k2 < deloff[k+1]; k2++) {
+              assert(ACTJ2(k2) >= 0);
+              assert(ACTJ2(k2) < nv);
+              const int64_t ncompk = ncomp[ACTJ2(k2)];
+              if (ncompk != ncompi) {
+                int where = stinger_int64_fetch_add(&incr, 1);
+                assert(where < 2*batch_size);
+                m1[where] = ncompi;
+                m2[where] = ncompk;
+              }
+            }
+          }
 
-      OMP("omp parallel for")
-      for(int k = 0; k < n; k++) {
-	const int64_t i = willchange[k];
-	if(ncomp[i] != i) {
-	  int64_t change = ncompsize[i];
-	  stinger_int64_fetch_add(&ncompsize[ncomp[i]], change);
-	  ncompsize[i] = 0;
-	}
-      }
-    }      // end "add only" component tracking
+        num_comp = connected_components_edge(nv, incr, m1, m2, ncomp);
+
+        OMP("omp parallel for")
+          for(int k = 0; k < n; k++) {
+            const int64_t i = willchange[k];
+            if(ncomp[i] != i) {
+              int64_t change = ncompsize[i];
+              stinger_int64_fetch_add(&ncompsize[ncomp[i]], change);
+              ncompsize[i] = 0;
+            }
+          }
+      }      // end "add only" component tracking
 
     update_time_trace[ntrace] = toc();
     ++ntrace;
@@ -448,7 +448,7 @@ main (const int argc, char *argv[])
 #if CHECK_ACCURACY
   free(tempcomp);
   free(temptree);
-#endif 
+#endif
   free(willchange);
   free(comp_to_merge);
   free(start);
@@ -463,7 +463,7 @@ main (const int argc, char *argv[])
   num_comp_end = connected_components_stinger (S, nv, ne, ncomp_end, NULL, NULL, NULL, NULL, NULL);
   PRINT_STAT_INT64 ("num_comp_end", num_comp_end);
   if (num_comp != num_comp_end) {
-	  printf(",\n\tWARNING: final results disagree");
+    printf(",\n\tWARNING: final results disagree");
   }
 
   /* Print the times */
@@ -491,4 +491,3 @@ main (const int argc, char *argv[])
 
   STATS_END();
 }
-

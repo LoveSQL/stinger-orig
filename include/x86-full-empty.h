@@ -21,7 +21,7 @@
 #if !defined(__MTA__) /* x86 only */
 
 #include  <stdint.h>
-#define MARKER UINT64_MAX
+#define MARKER INT64_MAX
 
 uint64_t 
 readfe(uint64_t * v);
