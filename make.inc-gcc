@@ -1,0 +1,4 @@
+CC=gcc -std=gnu9x
+CXX=g++
+CFLAGS=-g -O2
+LDLIBS=-lm -lrt

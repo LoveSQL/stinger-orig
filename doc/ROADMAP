@@ -1,0 +1,159 @@
+Road Map
+========
+Authors:
+David Ediger <dediger3@gatech.edu>
+Rob McColl <rmccoll3@gatech.edu>
+Fri Nov 11 22:00:31 UTC 2011
+
+Greetings and welcome to STINGER
+
+This is a listing of basic graph functions that we believe the STINGER API should support.  At the moment, 
+not all of these features are available, but there is enough functionality to maintain a streaming graph and 
+perform analytics.  Missing features are marked with an M.  Our focus is on an interface that provides 
+performance, but abstracts the underlying data structure.  We also hope to enable succinct coding.
+
+Future updates will:
+- make a best effort to continue supporting this interface
+- extend functionality to missing features
+- more explicitly mark parallel and serial versions of functions
+- create a short guide to getting better performance from STINGER
+
+If you have requests or suggestions specifically about the content of this document and features you 
+believe the STINGER API needs, please email the authors.
+
+o Supported
+M Missing
+
+Updated Fri Jun 06 2012
+
+• Create and Delete
+	o New Empty STINGER
+		struct stinger * myStinger = stinger_new();
+	o New STINGER from Sorted CSR
+		struct stinger * myStinger = stinger_new();
+		stinger_set_initial_edges(myStinger, NV, edgeType, off[], ind[], weight[], null, null, null);
+	o New STINGER from Unsorted CSR
+		struct stinger * myStinger = stinger_new();
+		stinger_set_initial_edges(myStinger, NV, edgeType, off[], ind[], weight[], null, null, null);
+	o New STINGER from Sorted Edgelist
+		struct stinger * myStinger = edge_list_to_stinger(nv, ne, startVertex[], endVertex[], weight[]);
+	o New STINGER from Unsorted Edgelist
+		struct stinger * myStinger = edge_list_to_stinger(nv, ne, startVertex[], endVertex[], weight[]);
+	o Delete STINGER
+		stinger_free_all(myStinger);
+	o Copy STINGER
+		Roughly achievable through stinger_save_to_file(), stinger_open_from_file()
+	
+• Edge Functions (GLOBAL)
+	o Insert Edge
+		o Undirected:
+			stinger_insert_edge_pair(myStinger, type, from, to, weight, timestamp);
+		o Directed:
+			stinger_insert_edge(myStinger, type, from, to, weight, timestamp);
+		o Batch Insert Per Vertex (Directed)
+			stinger_remove_and_insert_edges(myStinger, type, vertex, 0, null, numberToInsert, insertAdjacencies[], weights[], timestamp);
+	o Delete Edge
+		o Undirected:
+			stinger_remove_edge_pair(myStinger, type, from, to);
+		o Directed:
+			stinger_remove_edge(myStinger, type, from, to);
+		o Batch Delete Per Vertex (Directed)
+			stinger_remove_and_insert_edges(myStinger, type, vertex, numberToRemove, removeAdjacencies[], 0, null, null, timestamp);
+	o Batch Insert And Delete Per Vertex
+		Directed:
+			stinger_remove_and_insert_edges(myStinger, type, vertex, numberToRemove, removeAdjacencies[], numberToInsert, insertAdjacencies[], weights[], timestamp);
+	o Batch Insert And Delete for Entire Graph
+		// input is stream of actions and a number of actions to perform (packed touples where <i, ~j> represents a deletion)
+		// output is pseudo-csr in insoff, deloff, act, n
+		n = stinger_sort_actions(nactions, actions[> 2*nactions], insoff[2*nactions], deloff[2*nactions], act[2*nactions])
+		// performs the insertions and deletions from stinger
+		stinger_remove_and_insert_batch(myStinger, type, timestamp, n, insoff, deloff, act)
+	o Add To Weight
+		stinger_increment_edge_pair(myStinger, type, from, to, weight, timestamp);
+	o Get Weight
+		stinger_edgeweight(myStinger, from, to, type);
+	o Set Weight
+		stinger_set_edgeweight(myStinger, from, to, type, weight);
+	o Get First Timestamp
+		stinger_edge_timestamp_first(myStinger, from, to, type);
+	o Get Recent Timestamp
+		stinger_edge_timestamp_recent(myStinger, from, to, type);
+	o Set Recent Timestamp
+		stinger_edge_touch(myStinger, from, to, type, timestamp);
+	o EdgeExists(u,v)
+		stinger_has_typed_successor(myStinger, type, from, to);
+	
+• Vertex Functions
+	o Insert / Delete Vertex
+		Vertices which have in degree and out degree zero can be considered non-existant. To insert a vertex, simply add an edge to it. Likewise, to delete, remove all edges to or from that vertex.
+	o Get In Degree
+		stinger_indegree(myStinger, vertex);
+	o Get Out Degree
+		stinger_outdegree(myStinger, vertex);
+	o Get Weight
+		stinger_vweight(myStinger, vertex);
+	o Set Weight
+		stinger_set_vweight(myStinger, vertex, weight);
+	o GetNeighborsOfVertex
+		Use stinger_gather_typed_successors() or per-vertex traversal macros.
+	o GetInEdgesNeighbors
+		User stinger_gather_typed_predecessors()
+	o GetOutEdgesNeighbors
+		stinger_gather_typed_successors(myStinger, type, vertex, *numberFound, successorsOut[], successorLength);
+	
+• Global Info
+	o GetNeighborsOfVertices
+		This can be achieved using a combination of stinger_gather_typed_successors(), stinger_gather_typed_predecessors(), traversal macros, or the filtering iterator
+	o GetNumberOfVertices
+		stinger_num_active_vertices() stinger_max_active_vertex()
+	o GetNumberOfEdges
+		stinger_total_edges(myStinger);
+	
+• Traversal Functions
+  Exploration of the graph can be performed by using copy-out based functions such as stinger_gather_typed_successors() or stinger_to_sorted/unsorted_csr() (which are concurrent modify safe and in general the safest method) or by using traversal macros like the ones presented below.  Traversal macros like those listed below operate directly on the data structure with minimal copy.  Macros that do not contain _READ_ONLY_ can permanently modify the destination vertex id, weight, and timestamps of each edge that they process; however, they are not guarenteed to provide valid data if the STINGER structure is being concurrently modified.  Macros containing _READ_ONLY_ will receive local copies of all edge variables, are guarenteed to provide only valid data, and can be used while the STINGER structure is being modified.
+	o For Each Edge Of Vertex
+		STINGER_READ_ONLY_FORALL_EDGES_OF_VTX_BEGIN(myStinger, vertex) {
+			// Here you can use the macros STINGER_EDGE_SOURCE, STINGER_EDGE_TYPE, 
+			// STINGER_EDGE_DEST, STINGER_EDGE_WEIGHT, STINGER_EDGE_TIME_FIRST, and 
+			// STINGER_EDGE_TIME_RECENT to access metadata on each edge.
+			// For example, this code would add up all of the edge weights:
+			sum += STINGER_EDGE_WEIGHT
+			// or this could find the weight of the heaviest neighboring vertex:
+			min = stinger_vweight(myStinger, STINGER_EDGE_DEST) < min ? stinger_vweight(myStinger, STINGER_EDGE_DEST) : min;
+			// You should be safe to use other STINGER functions from inside this macro loop
+		} STINGER_READ_ONLY_FORALL_EDGES_OF_VTX_END()
+
+		STINGER_FORALL_EDGES_OF_VTX_BEGIN(STINGER_,VTX_) 
+		STINGER_FORALL_EDGES_OF_VTX_END()
+
+		STINGER_FORALL_EDGES_OF_TYPE_OF_VTX_BEGIN(STINGER_,TYPE_,VTX_) 
+		STINGER_FORALL_EDGES_OF_TYPE_OF_VTX_END()
+
+		STINGER_READ_ONLY_FORALL_EDGES_OF_TYPE_OF_VTX_BEGIN(STINGER_,TYPE_,VTX_) 
+		STINGER_READ_ONLY_FORALL_EDGES_OF_TYPE_OF_VTX_END()
+	o For All Edges in STINGER
+		STINGER_FORALL_EDGES_BEGIN(myStinger, TYPE_) {
+			// This function has the same supported macros as above and similar functionality,
+			// but loops over all edges in STINGER.
+		} STINGER_FORALL_EDGES_END()
+
+ 		STINGER_READ_ONLY_FORALL_EDGES_BEGIN(myStinger, TYPE_) {
+		} STINGER_READ_ONLY_FORALL_EDGES_END()
+        o Parallel traversal functions
+		STINGER_PARALLEL_FORALL_EDGES_OF_VTX_BEGIN(STINGER_,VTX_) 
+		STINGER_PARALLEL_FORALL_EDGES_OF_VTX_END()
+
+		STINGER_PARALLEL_FORALL_EDGES_OF_TYPE_OF_VTX_BEGIN(STINGER_,TYPE_,VTX_)
+		STINGER_PARALLEL_FORALL_EDGES_OF_TYPE_OF_VTX_END()
+
+		STINGER_PARALLEL_FORALL_EDGES_BEGIN(STINGER_,TYPE_) 
+		STINGER_PARALLEL_FORALL_EDGES_END()
+
+		STINGER_READ_ONLY_PARALLEL_FORALL_EDGES_OF_VTX_BEGIN(STINGER_,TYPE_,VTX_) 
+		STINGER_READ_ONLY_PARALLEL_FORALL_EDGES_OF_VTX_END()
+
+		STINGER_READ_ONLY_PARALLEL_FORALL_EDGES_OF_TYPE_OF_VTX_BEGIN(STINGER_,VTX_,TYPE_) 
+		STINGER_READ_ONLY_PARALLEL_FORALL_EDGES_OF_TYPE_OF_VTX_END()
+
+		STINGER_READ_ONLY_PARALLEL_FORALL_EDGES_BEGIN(STINGER_,TYPE_) 
+		STINGER_READ_ONLY_PARALLEL_FORALL_EDGES_END()
