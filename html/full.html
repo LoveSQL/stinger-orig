@@ -1,0 +1,1796 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>STINGER Monitoring Tools</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+<link href="lib/bootstrap/css/bootstrap.min.css" rel="stylesheet"></link>
+<script src="lib/jquery/jquery.min.js"></script>
+<script src="lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="lib/d3/d3.v3.js"></script>
+<script src="lib/underscore/underscore-min.js"></script>
+<script src="lib/underscore/underscore.string.min.js"></script>
+
+<style type="text/css">
+.link {
+    stroke: #000;
+    stroke-width: 1.5px;
+}
+
+.node {
+    fill: #000;
+    stroke: #fff;
+    stroke-width: 1.5px;
+}
+.enter {
+    fill: green;
+}
+
+.update {
+    fill: #333;
+}
+
+.exit {
+    fill: brown;
+}
+
+.labels {
+    font-weight: bold;
+}
+
+.titles {
+    font-weight: bold;
+}
+.axis path, .axis line {
+  fill: none;
+  stroke: #555555;
+  shape-rendering: crispEdges;
+}
+.line {
+  fill: none;
+  stroke: red;
+  stroke-width: 1px;
+}
+.link {
+  stroke: black;
+  stroke-width: 2px;
+}
+
+.levellabel {
+  color: #fff;
+}
+
+.level {
+  stroke: #fff;
+  stroke-width: 2px;
+}
+
+.nodelabel {
+  text-shadow:1px 1px #bbb;
+}
+</style>
+
+</head>
+<body>
+<div class="container">
+
+<div id="content">
+
+<h3 class="muted">STINGER Monitoring Tools</h3>
+
+<div class="accordion" id="accordion2">
+<div class="accordion-group">
+<div class="accordion-heading">
+<a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion2" href="#collapseOne">
+Toolbox
+<div class="pull-right" style="margin-left: 20px" id="global_nv">nv</div>
+<div class="pull-right" id="global_ne">ne</div></a>
+</div>
+<div id="collapseOne" class="accordion-body collapse in">
+<div class="accordion-inner">
+
+<div class="row" style="padding: 12px 0;">
+
+<div class="span3">
+<ul id="tabs" class="nav nav-list nav-stacked" data-tabs="tabs">
+<li class="active"><a href="#topscores" data-toggle="tab">Top Scores</a></li>
+<li><a href="#groupscores" data-toggle="tab">Group Scores</a></li>
+<li><a href="#labelgrid" data-toggle="tab">Label Grid</a></li>
+<li><a href="#shortestpaths" data-toggle="tab">Shortest Paths</a></li>
+<li><a href="#labelgraph" data-toggle="tab">Label Graph</a></li>
+<li><a href="#labelsubgraph" data-toggle="tab">Label Subgraph</a></li>
+<li><a href="#groupgraph" data-toggle="tab">Group Graph</a></li>
+</ul>
+</div>
+
+
+<div class="span8 well" style="height: 320px;">
+<div id="tabscontent" class="tab-content">
+<div class="tab-pane active" id="topscores">
+  <form action="#" class="form-horizontal" onSubmit="if($('#topscoresalgorithm').val() && $('#topscoresfield').val()) {
+    add_tool(new GroupChart(tools, '#toolstream', $('#topscoresalgorithm').val(), $('#topscoresfield').val(), $('#topscorescount').val(), [], false));
+    add_tool(new GroupList(tools, '#toolstream', $('#topscoresalgorithm').val(), $('#topscoresfield').val(), $('#topscorescount').val(), [], false));
+  }">
+    <legend>Top Scores</legend>
+    <p>Select a set of scores and enter the number of positions to track.  A table of the top scoring vertices will be shown along with
+    a bar chart representing the scores of each vertex relative to the highest.  This table is sorted by score.  It will rearrange, resize, add and remove
+    vertices as the scores change.  Additionally, a plot of the vertices's scores over time is shown along with a key.
+    </p>
+    <div class="control-group">
+      <label class="control-label" for="topscoresalgorithm">Algorithm</label>
+      <div class="controls">
+	<select class="span5 algselector" id="topscoresalgorithm">
+	</select>
+      </div>
+      <label class="control-label" for="topscoresfield">Field</label>
+      <div class="controls">
+	<select class="span5 fieldselector" id="topscoresfield">
+	</select>
+      </div>
+      <label class="control-label" for="topscorescount">Count</label>
+      <div class="controls">
+	<input type="text" id="topscorescount" class="span5" rows="2" value="25"/>
+      </div>
+      <div class="controls">
+	<br/>
+	<button type"submit" class="btn btn-success" >Add Tool</button>
+      </div>
+    </div>
+  </form>
+</div>
+<div class="tab-pane" id="groupscores">
+  <form action="#" class="form-horizontal" onSubmit="if($('#groupscoresalgorithm').val() && $('#groupscoresfield').val()) {
+    add_tool(new GroupChart(tools, '#toolstream', $('#groupscoresalgorithm').val(), $('#groupscoresfield').val(), 0, $('#groupscoresgroup').val(), true));
+    add_tool(new GroupList(tools, '#toolstream', $('#groupscoresalgorithm').val(), $('#groupscoresfield').val(), 0, $('#groupscoresgroup').val(), true));
+  }">
+    <legend>Group Scores</legend>
+    <p>Select a set of scores and enter the names of one or more vertices.  A table of the scores of the vertices will be shown along with
+    a bar chart representing the scores of each vertex relative to the highest.  This table is sorted by score.  It will rearrange as 
+    the scores change and the bars will resize.  Additionally, a plot of the vertices's scores over time is shown along with a key.
+    </p>
+    <div class="control-group">
+      <label class="control-label" for="groupscoresalgorithm">Algorithm</label>
+      <div class="controls">
+	<select class="span5 algselector" id="groupscoresalgorithm">
+	</select>
+      </div>
+      <label class="control-label" for="groupscoresfield">Field</label>
+      <div class="controls">
+	<select class="span5 fieldselector" id="groupscoresfield">
+	</select>
+      </div>
+      <label class="control-label" for="groupscoresgroup">Vertex</label>
+      <div class="controls">
+	<textarea id="groupscoresgroup" class="span5" rows="2">joshuajones,norahjones</textarea>
+      </div>
+      <div class="controls">
+	<br/>
+	<button type"submit" class="btn btn-success" >Add Tool</button>
+      </div>
+    </div>
+  </form>
+</div>
+<div class="tab-pane" id="labelgrid">
+  <form action="#" class="form-horizontal" onSubmit="if($('#labelgridalgorithm').val() && $('#labelgridfield').val()) add_tool(new LabelGrid(tools, '#toolstream', $('#labelgridalgorithm').val(), $('#labelgridfield').val(), $('#labelgridvertex').val()));">
+    <legend>Label Grid</legend>
+    <p>Select a label type and enter the names of one or more vertices.  The grid will display vertex names along the top and side of a 
+    grid.  Colors are used to represent the label of a vertex. Vertices with the same color are in the same group. As the labels change,
+    the colors will change. The grid will rearrange to place vertices with the same labels next to each other.
+    </p>
+    <div class="control-group">
+      <label class="control-label" for="labelgridalgorithm">Algorithm</label>
+      <div class="controls">
+	<select class="span5 algselector" id="labelgridalgorithm">
+	</select>
+      </div>
+      <label class="control-label" for="labelgridfield">Field</label>
+      <div class="controls">
+	<select class="span5 fieldselector" id="labelgridfield">
+	</select>
+      </div>
+      <label class="control-label" for="labelgridvertex">Vertex</label>
+      <div class="controls">
+	<textarea id="labelgridvertex" class="span5" rows="2">joshuajones,norahjones</textarea>
+      </div>
+      <div class="controls">
+	<br/>
+	<button type"submit" class="btn btn-success" >Add Tool</button>
+      </div>
+    </div>
+  </form>
+</div>
+<div class="tab-pane" id="shortestpaths">
+  <form action="#" class="form-horizontal" onSubmit="if($('#shortestsource').val() && $('#shortestdest').val()) add_tool(new ShortestPaths(tools, '#toolstream', $('#shortestsource').val(), $('#shortestdest').val()));">
+    <legend>Shortest Paths</legend>
+    <p>Enter the names of two vertices.  The shortest paths graph will show a display of all of the shortest paths between these vertices including
+    all of the intermediate nodes.  As
+    new edges are added and removed, the display will be updated with alternative paths of the same length.  If the displayed paths are
+    broken or shorter paths are created, the distance shown will expand or contract appropriately.
+    </p>
+    <div class="control-group">
+      <label class="control-label" for="shortestsource">Source Vertex</label>
+      <div class="controls">
+	<input type="text" id="shortestsource" class="span5" value="naomijones">
+      </div>
+      <label class="control-label" for="shortestdest">Destination Vertex</label>
+      <div class="controls">
+	<input type="text" id="shortestdest" class="span5" value="joshuajones">
+      </div>
+      <div class="controls">
+	<br/>
+	<button type"submit" class="btn btn-success" >Add Tool</button>
+      </div>
+    </div>
+  </form>
+</div>
+<div class="tab-pane" id="labelsubgraph">
+  <form action="#" class="form-horizontal" onSubmit="if($('#labelsubgraphalgorithm').val() && $('#labelsubgraphfield').val()) add_tool(new LabelSubgraph(tools, '#toolstream', $('#labelsubgraphalgorithm').val(), $('#labelsubgraphfield').val(), $('#labelsubgraphvertex').val(), $('#labelsubgraphlimit').val()));">
+    <legend>Label Subgraph</legend>
+    <p>Select a label type and enter the name of a vertex.  The label graph will show the structure of all vertices with the same
+    label as the chosen vertex. This version limits the graph to a certain number of vertices.</p>
+    <div class="control-group">
+      <label class="control-label" for="labelsubgraphalgorithm">Algorithm</label>
+      <div class="controls">
+	<select class="span5 algselector" id="labelsubgraphalgorithm">
+	</select>
+      </div>
+      <label class="control-label" for="labelsubgraphfield">Field</label>
+      <div class="controls">
+	<select class="span5 fieldselector" id="labelsubgraphfield">
+	</select>
+      </div>
+      <label class="control-label" for="labelsubgraphvertex">Vertex</label>
+      <div class="controls">
+	<input type="text" id="labelsubgraphvertex" class="span5" value="naomijones">
+      </div>
+      <label class="control-label" for="labelsubgraphlimit">Vertex Limit</label>
+      <div class="controls">
+	<input type="text" id="labelsubgraphlimit" class="span5" value="200">
+      </div>
+      <div class="controls">
+	<br/>
+	<button type"submit" class="btn btn-success" >Add Tool</button>
+      </div>
+    </div>
+  </form>
+</div>
+<div class="tab-pane" id="labelgraph">
+  <form action="#" class="form-horizontal" onSubmit="if($('#labelgraphalgorithm').val() && $('#labelgraphfield').val()) add_tool(new LabelGraph(tools, '#toolstream', $('#labelgraphalgorithm').val(), $('#labelgraphfield').val(), $('#labelgraphvertex').val()));">
+    <legend>Label Graph</legend>
+    <p>Select a label type and enter the name of a vertex.  The label graph will show the structure of all vertices with the same
+    label as the chosen vertex.</p>
+    <div class="control-group">
+      <label class="control-label" for="labelgraphalgorithm">Algorithm</label>
+      <div class="controls">
+	<select class="span5 algselector" id="labelgraphalgorithm">
+	</select>
+      </div>
+      <label class="control-label" for="labelgraphfield">Field</label>
+      <div class="controls">
+	<select class="span5 fieldselector" id="labelgraphfield">
+	</select>
+      </div>
+      <label class="control-label" for="labelgraphvertex">Vertex</label>
+      <div class="controls">
+	<input type="text" id="labelgraphvertex" class="span5" value="naomijones">
+      </div>
+      <div class="controls">
+	<br/>
+	<button type"submit" class="btn btn-success" >Add Tool</button>
+      </div>
+    </div>
+  </form>
+</div>
+<div class="tab-pane" id="groupgraph">
+  <form action="#" class="form-horizontal" onSubmit="add_tool(new GroupGraph(tools, '#toolstream', $('#groupgraphvertex').val()));">
+    <legend>Group Graph</legend>
+    <p>Enter the names of one or more vertices.  The group graph will show each requested vertex and all of its neighbors.  If the 
+    vertices in the group are directly connected or share at least one neighbor, the connections between them will be shown.  Otherwise,
+    longer paths between the vertices are hidden.  As new neighbors connect to the vertices in the group, they are added to the display.
+    </p>
+    <div class="control-group">
+      <label class="control-label" for="groupgraphvertex">Vertices</label>
+      <div class="controls">
+	<textarea id="groupgraphvertex" class="span5" rows="3">joshuajones,norahjones</textarea>
+      </div>
+      <div class="controls">
+	<br/>
+	<button type"submit" class="btn btn-success" >Add Tool</button>
+      </div>
+    </div>
+  </form>
+</div>
+</div>
+</div>
+
+</div> <!-- end row -->
+
+</div>
+</div>
+</div>
+</div>  <!-- end of toolbox -->
+
+<div id="toolstream"></div>
+
+</div> <!-- end of content-->
+
+<!-- Error Modal -->
+<div id="modalError" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="modalErrorLabel" aria-hidden="true">
+<div class="modal-header">
+<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+<h3 id="modalErrorLabel">Request Cannot Be Satisfied</h3>
+</div>
+<div class="modal-body">
+<p>The requested data is not present in the graph.<p>
+</div>
+<div class="modal-footer">
+<button class="btn" data-dismiss="modal" aria-hidden="true">Close</button>
+</div>
+</div>
+
+<!-- Save Modal -->
+<div id="modalSave" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="modalSaveLabel" aria-hidden="true">
+<div class="modal-header">
+<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+<h3 id="modalSaveLabel">Save SVG Image</h3>
+</div>
+<div class="modal-body">
+<p>To save the image, right click the link below and choose "Save As".<p>
+<div id="savelink"></div>
+</div>
+<div class="modal-footer">
+<button class="btn" data-dismiss="modal" aria-hidden="true">Close</button>
+</div>
+</div>
+
+<script type="text/javascript">
+/* startup code */
+  _.mixin(_.str.exports());
+
+  var tools = [];
+
+  function add_tool(tool) { 
+    tools.push(tool); 
+    return false;
+  }
+
+  jQuery(document).ready(function ($) {
+      $('#tabs').tab();
+      $(".collapse").collapse();
+      $(".algselector").click(function() {
+	$(".fieldselector").find('option').remove().end();
+
+	$(".fieldselector").each( (function(algname) { 
+	  return function() {
+	    _.each(algorithms[algname].fields, (function(item) { 
+	      return function(value) {
+		$(item).append(
+		  $("<option></option>")
+		  .attr("value", value)
+		  .text(value));
+	      }; })(this));
+	  }; 
+	})(this.value));
+      });
+      update_algorithms();
+      get_graph_stats(false);
+  });
+
+/* request_id handling */
+  var request_id = 0;
+
+  function next_id() {
+    request_id += 1;
+    return request_id;
+  }
+
+/* running algorithms and data sources */
+  var algorithms = {'': {'fields':[]}};
+
+  function update_algorithms() {
+    rpc("get_algorithms", {}, next_id(),
+      function(data) {
+	for(d = 0; d <  data.result.algorithms.length; d++) {
+	  alg = data.result.algorithms[d];
+	  algorithms[alg] = {};
+
+	  rpc("get_data_description", {'name': data.result.algorithms[d]}, next_id(),
+	    (function(alg) { return function(data) {
+	      algorithms[alg] = {'fields': data.result.alg_data};
+	    }; })(alg),
+	    null);
+	}
+
+	$(".algselector").each(function() {
+	  _.each(algorithms, (function(item) { 
+	    return function(value, key) {
+	      $(item).append(
+		$("<option></option>")
+		.attr("value", key)
+		.text(key));
+	    }; })(this));
+	});
+      },
+      null);
+  }
+
+  function get_graph_stats(wait) {
+    rpc("get_graph_stats", {wait_for_update: wait, get_types: true}, next_id(),
+      function(data) {
+	  global_nv = data.result.vertices;
+	  global_ne = data.result.edges;
+	  global_vtype_str = data.result.vertex_types;
+	  global_etype_str = data.result.edge_types;
+	  $('#global_nv').text("Total Vertices: " + global_nv);
+	  $('#global_ne').text("Total Edges: " + global_ne);
+	  get_graph_stats(true);
+	},
+	null, null, this);
+  }
+
+/* general purpose utility functions */
+  function rpc(method, params, id, success, error, close, scope) {
+    $.ajax({
+      url: "/jsonrpc",
+      type: "POST",
+      data: JSON.stringify({"jsonrpc": "2.0", "method": method, "params": params, "id": id}),
+      dataType: "json",
+      success: (function(success, close, scope) { return function(data) { if('error' in data) { console.log(data); $("#modalError").modal(); close.apply(scope); } else { success(data); } }; })(success, close, scope),
+      error: error
+    });
+  }
+
+  function add_tool_win(parent_id, child_id, title, obj) {
+    child_id = child_id.substring(1);
+    text = '<div class="accordion" id="' + child_id + 'accordion"><div class="accordion-group well"><div class="accordion-heading" id="' + child_id + 'accordion-heading">' +
+    '<a class="accordion-toggle" data-toggle="collapse" data-parent="#' + child_id  + 'accordion" href="#' + child_id+ 'collapse">' +
+    title + '</a></div><div id="' + child_id + 'collapse" class="accordion-body collapse in">' +
+    '<div class="accordion-inner"><div id="' + child_id + '"></div></div></div></div></div>';
+    $(parent_id).prepend(text);
+    $("#" + child_id + 'accordion-heading').prepend("<button aria-hidden='true' id='" + child_id + "savebtn' class='close pull-right' type='button'>&#x25bc;</button>");
+    $("#" + child_id + 'savebtn').click((function (child_id) { return function() { 
+      $('#' + child_id + 'accordion').find('svg').attr({ version: '1.1' , xmlns:"http://www.w3.org/2000/svg"});
+      var b64data = window.btoa($('#' + child_id + 'accordion').find('svg').parent().html());
+      console.log(b64data);
+      $("#savelink").empty();
+      $("#savelink").append($("<a href-lang='image/svg+xml' href='data:image/svg+xml;base64,\n" + b64data +"' title='image.svg'>Download</a>")); 
+      $("#modalSave").modal();
+    }; })(child_id));
+    $("#" + child_id + 'accordion-heading').prepend("<button aria-hidden='true' id='" + child_id + "closebtn' class='close pull-right' type='button'>X</button>");
+    $("#" + child_id + 'closebtn').click((function (me) { return function() { me.close(); }; })(obj));
+    $(".collapse").collapse();
+  }
+
+  var ts = 0;
+  function notify_ts(t) {
+    if(t > ts)
+      ts = t;
+    return ts;
+  }
+
+/***************************************************
+ * Top / Group Scores
+ */
+
+function GroupList(tools, id, alg, field, count, member_list_str, is_group) {
+  this.is_group = is_group;
+  this.parent_id = id;
+  this.id = id + tools.length;
+  this.alg = alg;
+  this.field = field;
+  this.time_to_die = false;
+
+  this.member_list = [];
+
+  if(is_group) {
+    if(-1 != member_list_str.indexOf(",")) {
+      this.member_list = member_list_str.split(',');
+    } else {
+      this.member_list = member_list_str.split(' ');
+    }
+    this.count = this.member_list.length;
+  } else {
+    this.count = parseInt(_.trim(count));
+  }
+
+  add_tool_win(this.parent_id, this.id, (is_group ? "Group" : "Top") + " Scores (" + alg + "," + field + ": " + (is_group ? member_list_str : this.count)+ " )", this);
+
+  this.width = 860;
+  this.height = (this.count + 3) * 18;
+  this.name_pos_x = 80;
+  this.label_pos_x = 0;
+  this.title_labels = ["", "Name", "Score", "Relative"];
+
+  this.colors = d3.scale.category20();
+
+  this.x_space = function(d,i) {
+    spacing = [0, 0, 200, 420, 500];
+    return spacing[i];
+  }
+
+  this.bar_width = this.width - this.x_space(0,3);
+
+  /* create svg */
+  this.svg = d3.select(this.id).append("svg")
+      .attr("width", this.width)
+      .attr("height", this.height);
+
+  /* create labels */
+  var titles = this.svg.selectAll(".titles").data(this.title_labels)
+    .enter().append("text")
+    .attr("class", "titles")
+    .attr("x", this.x_space)
+    .attr("y", 18)
+    .text(function(d) { return d; });
+
+  this.close = function() {
+    tools.splice(tools.indexOf(this),1);
+    $(this.id + 'accordion').fadeOut(300, function() { $(this).remove(); });
+    this.time_to_die = true;
+  };
+
+  this.call_remote = function(wait, obj) {
+    if(obj.is_group) {
+      rpc("get_data_array_set", 
+	{"wait_for_update": wait, "name": obj.alg, "data": obj.field, "strings":true, "set": obj.member_list, "order":"DESC"}, 
+	next_id(), 
+	(function(me) { return function(data) { return me.update(_.zip(data.result[obj.field].vertex_str, data.result[obj.field].value), me); }; })(obj), null, obj.close, obj);
+    } else {
+      rpc("get_data_array_sorted_range", 
+	{"wait_for_update": wait, "name": obj.alg, "data": obj.field, "strings":true, "offset": 0, "count":obj.count, "order":"DESC"}, 
+	next_id(), 
+	(function(me) { return function(data) { return me.update(_.zip(data.result[obj.field].vertex_str, data.result[obj.field].value), me); }; })(obj), null, obj.close, obj);
+    }
+  };
+
+  /* update and data handling */
+  this.update = function(data, obj) {
+    var text = obj.svg.selectAll(".names")
+      .data(data, function (d) { return d[0] });
+
+    text
+      .on("click", function(d) { window.open("http://twitter.com/" + d[0], "_blank"); })
+
+    text.attr("class","names")
+      .transition()
+      .delay(750)
+      .attr("y", function(d,i) { return (i+2)*18 + 5; });
+
+    text.enter().append("text")
+      .attr("class","names enter")
+      .attr("dx", ".35em")
+      .attr("x", obj.x_space(0,1))
+      .attr("y", function(d,i) { return (i+2)*18 + 5; })
+      .style("fill-opacity",1e-6)
+      .text(function(d) { return d[0]; })
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("fill-opacity",1);
+
+    text.exit()
+      .attr("class", "names exit")
+      .transition()
+      .duration(750)
+      .style("fill-opacity",1e-6)
+      .remove();
+
+    var values = obj.svg.selectAll(".values")
+      .data(data, function (d) { return d[0]});
+
+    values.attr("class","values update")
+      .transition()
+      .delay(750)
+      .attr("y", function(d,i) { return (i+2)*18 + 5; })
+      .text(function(d) { return d[1] });
+
+    values.enter().append("text")
+      .attr("class","values enter")
+      .attr("dx", ".35em")
+      .attr("x", obj.x_space(0,2))
+      .attr("y", function(d,i) { return (i+2)*18 + 5; })
+      .style("fill-opacity",1e-6)
+      .text(function(d) { return d[1]; })
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("fill-opacity",1);
+
+    values.exit()
+      .attr("class", "values exit")
+      .transition()
+      .duration(750)
+      .style("fill-opacity",1e-6)
+      .remove();
+
+    obj.svg
+      .transition()
+      .delay(750)
+      .attr("height", (data.length + 2) * 18 + 15);
+
+    var bars = obj.svg.selectAll(".bars")
+      .data(data, function(d) { return d[0]; });
+
+    var maxval = _.max(data, function(d) { return d[1]; });
+
+    bars.attr("class", "bars update")
+      .transition()
+      .delay(750)
+      .attr("y", function(d,i) { return (i+1)*18 + 5; })
+      .attr("width", (function(max, width) { return function(d) { return max == 0 ? width : width * d[1] / max; }; })(maxval[1], obj.bar_width));
+    
+    bars.enter().append("rect")
+      .attr("class", "bars enter")
+      .attr("x", obj.x_space(0,3))
+      .attr("y", function(d,i) { return (i+1)*18 + 5; })
+      .attr("width", (function(max, width) { return function(d) { return max == 0 ? width : width * d[1] / max; }; })(maxval[1], obj.bar_width))
+      .attr("height", 18)
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("fill", (function(colors) { return function(d) { return colors(d[0]);}; })(obj.colors))
+      .style("fill-opacity",1);
+
+    bars.exit()
+      .attr("class", "bars exit")
+      .transition()
+      .duration(750)
+      .style("fill-opacity", 1e-6)
+      .remove();
+
+    if(!obj.time_to_die)
+      obj.call_remote(true, obj);
+  }
+
+  this.call_remote(false, this);
+
+  return this;
+};
+
+function GroupChart(tools, id, alg, field, count, member_list_str, is_group) {
+  this.is_group = is_group;
+  this.parent_id = id;
+  this.id = id + tools.length;
+  this.alg = alg;
+  this.field = field;
+  this.time_to_die = false;
+
+  this.member_list = [];
+
+  if(is_group) {
+    if(-1 != member_list_str.indexOf(",")) {
+      this.member_list = member_list_str.split(',');
+    } else {
+      this.member_list = member_list_str.split(' ');
+    }
+    this.count = this.member_list.length;
+  } else {
+    this.count = parseInt(_.trim(count));
+  }
+
+  add_tool_win(this.parent_id, this.id, (is_group ? "Group" : "Top") + " Scores Over Time (" + alg + "," + field + ": " + (is_group ? member_list_str : this.count)+ " )", this);
+  this.t = 0;
+  this.n = 40;
+  this.duration = 750;
+
+  this.margin = {
+    top: 10,
+    right: 120,
+    bottom: 20,
+    left: 80
+  };
+
+  this.width = 860 - this.margin.left - this.margin.right;
+  this.height = 700 - this.margin.top - this.margin.bottom;
+
+  this.x = d3.scale.linear()
+    .domain([this.t - this.n + 1, this.t])
+    .range([0, this.width]);
+
+  this.y = d3.scale.linear()
+    .domain([0, 1])
+    .range([this.height, 0]);
+
+  this.line = d3.svg.line()
+    .interpolate("basis")
+    .x((function(x) { 
+      return function (d, i) {
+	return x(d.time);
+      };
+    })(this.x))
+    .y((function(y) { 
+      return function (d, i) {
+	return y(d.value);
+      };
+    })(this.y));
+
+  this.svg = d3.select(this.id).append("svg")
+    .attr("width", this.width + this.margin.left + this.margin.right)
+    .attr("height", this.height + this.margin.top + this.margin.bottom);
+
+  this.g = this.svg.append("g")
+    .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")");
+
+  // extra svg to clip the graph and x axis as they transition in and out
+  this.graph = this.g.append("svg")
+    .attr("width", this.width)
+    .attr("height", this.height + this.margin.top + this.margin.bottom);
+
+  this.xAxis = d3.svg.axis().scale(this.x).orient("bottom");
+  this.yAxis = d3.svg.axis().scale(this.y).orient("left");
+
+  this.xaxis = this.graph.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + this.height + ")")
+    .call(this.x.axis = this.xAxis);
+
+  this.yaxis = this.g.append("g")
+    .attr("class", "y axis")
+    .call(this.y.axis = this.yAxis);
+
+  this.data = {};
+  this.paths = {};
+
+  this.colors = d3.scale.category20();
+
+  this.close = function() {
+    tools.splice(tools.indexOf(this),1);
+    $(this.id + 'accordion').fadeOut(300, function() { $(this).remove(); });
+    this.time_to_die = true;
+  };
+
+  this.call_remote = function(wait, t, obj) {
+    if(obj.is_group) {
+      rpc("get_data_array_set", 
+	{"wait_for_update": wait, "name": obj.alg, "data": obj.field, "strings":true, "set": obj.member_list, "order":"DESC"}, 
+	next_id(), 
+	(function(t, me) { return function(data) { return me.update(data, t, me); }; })(t, obj), null, obj.close, obj);
+    } else {
+      rpc("get_data_array_sorted_range", 
+	{"wait_for_update": wait, "name": obj.alg, "data": obj.field, "strings":true, "offset": 0, "count":obj.count, "order":"DESC"}, 
+	next_id(), 
+	(function(t, me) { return function(data) { return me.update(data, t, me); }; })(t, obj), null, obj.close, obj);
+    }
+  };
+
+
+  this.update = function(data_in, t, obj) {
+    t = notify_ts(t);
+
+    data = data_in.result[obj.field].value;
+    names = data_in.result[obj.field].vertex_str;
+
+    for(i = 0; i < data.length; i++) {
+      if(!(names[i] in obj.data)) {
+	obj.data[names[i]] = [{time:t-1, value:0}];
+	obj.paths[names[i]] = obj.graph.append("g")
+	    .append("path")
+	    .data([obj.data[names[i]]])
+	    .attr("class", "line")
+	    .style("stroke", obj.colors(names[i]))
+	    .style("stroke-width", "3px");
+      } 
+      if(obj.data[names[i]][0].time < t - obj.n) {
+	obj.data[names[i]].shift();
+	if(obj.data[names[i]].length <= 0) {
+	  delete obj.data[names[i]];
+	  delete obj.paths[names[i]];
+	}
+      }
+      obj.data[names[i]].push({time:t, value: data[i]});
+    }
+
+    obj.x.domain([t - obj.n + 2, t]);
+
+    maxy = _.reduce(obj.data, 
+      function(memo, num) { 
+	local_max = _.max(num, function(d) { return d.value; });
+	return _.max([local_max.value, memo]);
+      }, 
+      0);
+
+    obj.y.domain([0, maxy * 1.05]);
+
+    obj.graph.selectAll(".line").attr("d", obj.line).attr("transform", null);
+    obj.graph.selectAll(".line").transition()
+      .duration(obj.duration)
+      .ease("linear")
+      .attr("transform", "translate(" + obj.x(t-obj.n+1) + ")");
+
+    obj.xaxis.transition()
+      .duration(obj.duration)
+      .ease("linear")
+      .call(obj.xAxis);
+
+    obj.yaxis.transition()
+      .duration(obj.duration)
+      .ease("linear")
+      .call(obj.yAxis);
+
+    var text = obj.svg.selectAll(".names").data(names, function(d) { return d; });
+
+    text
+      .on("click", function(d) { window.open("http://twitter.com/" + d, "_blank"); })
+
+    text.attr("class","names update")
+      .transition()
+      .delay(750)
+      .attr("y", function(d,i) { return (i+2)*18 })
+      .text(function(d) { return d; });
+
+    text.enter().append("text")
+      .attr("class","names enter")
+      .attr("dx", ".35em")
+      .attr("x", obj.width + obj.margin.left)
+      .attr("y", function(d,i) { return (i+2)*18; })
+      .style("fill-opacity",1e-6)
+      .text(function(d) { return d; })
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("fill-opacity",1)
+      .style("fill", 
+	(function(colors) { 
+	  return function(d) { 
+	    return colors(d);
+	  }; 
+	})(obj.colors));
+
+    text.exit()
+      .attr("class", "names exit")
+      .transition()
+      .duration(750)
+      .style("fill-opacity",1e-6)
+      .remove();
+
+    if(!obj.time_to_die)
+      obj.call_remote(true, t+1, obj);
+  }
+
+  this.call_remote(false, ts+1, this);
+};
+
+/***************************************************
+ * Label Grid
+ */
+function LabelGrid(tools, id, alg, field, member_list_str) {
+  this.parent_id = id;
+  this.id = id + tools.length;
+  this.alg = alg;
+  this.field = field;
+  this.time_to_die = false;
+
+  this.member_list = [];
+  if(-1 != member_list_str.indexOf(",")) {
+    this.member_list = member_list_str.split(',');
+  } else {
+    this.member_list = member_list_str.split(' ');
+  }
+
+  add_tool_win(this.parent_id, this.id, "Label Grid (" + member_list_str + ")", this);
+
+  this.duration = 750;
+
+  this.margin = {
+    top: 100,
+    right: 100,
+    bottom: 60,
+    left: 100
+  };
+
+  this.width = 900 - this.margin.left - this.margin.right;
+  this.height = 900 - this.margin.top - this.margin.bottom;
+
+  this.colors = d3.scale.category20();
+
+  this.svg = d3.select(this.id).append("svg")
+    .attr("width", this.width + this.margin.left + this.margin.right)
+    .attr("height", this.height + this.margin.top + this.margin.bottom);
+
+  this.close = function() {
+    tools.splice(tools.indexOf(this),1);
+    $(this.id + 'accordion').fadeOut(300, function() { $(this).remove(); });
+    this.time_to_die = true;
+  };
+
+  this.call_remote = function(wait, obj) {
+    rpc("get_data_array_set", 
+      {"wait_for_update": wait, "name": obj.alg, "data": obj.field, "strings":true, "set": obj.member_list, "order":"DESC"}, 
+      next_id(), 
+      (function(me) { return function(data) { return me.update(data, me); }; })(obj), null, obj.close, obj);
+  };
+
+  this.update = function(data, obj) {
+    var labels = _.sortBy(_.zip(data.result.component_label.vertex_str, data.result.component_label.value), function(d) { return d[1] });
+
+    var row_titles = obj.svg.selectAll(".row_titles").data(labels, function(d) { return d[0] });
+
+    row_titles.attr("class","row_titles")
+      .transition()
+      .delay(750)
+      .text(function(d) { return d[0]; })
+      .style("fill", (function(colors) { return function(d) { return colors(d[1]);}; })(obj.colors))
+      .attr("y", 
+	(function(labels, height, offset) { 
+	  return function(d, i) {
+	    return offset + (i+0.5) * (height/labels);
+	  }
+	})(labels.length, obj.height, obj.margin.top));
+
+    row_titles.enter().append("text")
+      .attr("class", "row_titles")
+      .attr("text-anchor", "end")
+      .attr("x", obj.margin.left - 5)
+      .attr("y", 
+	(function(labels, height, offset) { 
+	  return function(d, i) {
+	    return offset + (i+0.5) * (height/labels);
+	  }
+	})(labels.length, obj.height, obj.margin.top))
+      .text(function(d) { return d[0]; })
+      .style("fill-opacity",1e-6)
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("fill", (function(colors) { return function(d) { return colors(d[1]);}; })(obj.colors))
+      .style("fill-opacity",1);
+
+    row_titles.exit()
+      .attr("class", "row_titles exit")
+      .transition()
+      .duration(750)
+      .style("fill-opacity",1e-6)
+      .remove();
+
+    var column_titles = obj.svg.selectAll(".column_titles").data(labels, function(d) { return d[0] });
+
+    column_titles.attr("class","column_titles")
+      .transition()
+      .delay(750)
+      .text(function(d) { return d[0]; })
+      .style("fill", (function(colors) { return function(d) { return colors(d[1]);}; })(obj.colors))
+      .attr("x", 
+	(function(labels, width, offset) { 
+	  return function(d, i) {
+	    return offset + (i+0.5) * (width/labels);
+	  }
+	})(labels.length, obj.width, obj.margin.left));
+
+    column_titles.enter().append("text")
+      .attr("class", "column_titles")
+      .attr("text-anchor", "end")
+      .attr("y", obj.margin.top - 5)
+      .attr("x", 
+	(function(labels, width, offset) { 
+	  return function(d, i) {
+	    return offset + (i+0.5) * (width/labels);
+	  }
+	})(labels.length, obj.width, obj.margin.left))
+      .text(function(d) { return d[0]; })
+      .style("fill-opacity",1e-6)
+      .style("writing-mode", "tb")
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("fill", (function(colors) { return function(d) { return colors(d[1]);}; })(obj.colors))
+      .style("fill-opacity",1);
+
+    column_titles.exit()
+      .attr("class", "column_titles exit")
+      .transition()
+      .duration(750)
+      .style("fill-opacity",1e-6)
+      .remove();
+
+    var matrix = []
+    for(i = 0; i < labels.length; i++) {
+      for(j = 0; j < labels.length; j++) {
+	matrix.push(
+	  {'v_x':i, 'v_y':j, 
+	  'row_v':labels[i][0], 'col_v':labels[j][0], 
+	  'label': (labels[i][1] == labels[j][1] ? labels[i][1] : -1)});
+      }
+    }
+    for(j in matrix) {
+      d = matrix[j];
+    }
+
+    var rows = obj.svg.selectAll(".rows").data(matrix, function(d) { return d.col_v + " " +  d.row_v });
+
+    rows
+      .transition()
+      .duration(200)
+      .style("fill-opacity",0.5)
+      .transition()
+      .duration(550)
+      .attr("x", 
+	(function(labels, width, offset) { 
+	  return function(d, i) {
+	    return offset + (d.v_x) * (width/labels);
+	  }
+	})(labels.length, obj.width, obj.margin.left))
+      .attr("y", 
+	(function(labels, height, offset) { 
+	  return function(d, i) {
+	    return offset + (d.v_y) * (height/labels);
+	  }
+	})(labels.length, obj.height, obj.margin.top))
+      .attr("width", obj.width / labels.length)
+      .attr("height", obj.height / (labels.length))
+      .style("fill", (function(colors) { return function(d) { if(d.label != -1) return colors(d.label); else return "#fff";}; })(obj.colors))
+      .style("fill-opacity",1);
+    
+    rows.enter().append("rect")
+      .attr("class", "rows")
+      .attr("x", 
+	(function(labels, width, offset) { 
+	  return function(d, i) {
+	    return offset + (d.v_x) * (width/labels);
+	  }
+	})(labels.length, obj.width, obj.margin.left))
+      .attr("y", 
+	(function(labels, height, offset) { 
+	  return function(d, i) {
+	    return offset + (d.v_y) * (height/labels);
+	  }
+	})(labels.length, obj.height, obj.margin.top))
+      .attr("width", obj.width / labels.length)
+      .attr("height", obj.height / (labels.length))
+      .style("fill", (function(colors) { return function(d) { if(d.label != -1) return colors(d.label); else return "#fff";}; })(obj.colors))
+      .style("stroke", "#fff")
+      .style("fill-opacity",1e-6)
+      .style("stroke-opacity",1e-6)
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("stroke-opacity",1)
+      .style("fill-opacity",1);
+
+    rows.exit()
+      .transition()
+      .duration(750)
+      .style("fill-opacity",1e-6)
+      .remove();
+
+    if(!obj.time_to_die)
+      obj.call_remote(true, obj);
+  }
+
+  this.call_remote(false, this);
+}
+
+/***************************************************
+ * Shortest Paths
+ */
+function ShortestPaths(tools, id, source, dest) {
+
+  this.parent_id = id;
+  this.id = id + tools.length;
+  this.source = source;
+  this.dest = dest;
+  this.duration = 750;
+  this.radius = 10;
+  this.time_to_die = false;
+
+  this.margin = {
+    top: 50,
+    right: 100,
+    bottom: 20,
+    left: 40
+  };
+
+  this.width = 900 - this.margin.left - this.margin.right;
+  this.height = 500 - this.margin.top - this.margin.bottom;
+
+  add_tool_win(this.parent_id, this.id, "Shortest Paths Between " + source + " " + dest, this);
+
+  this.vcolors = d3.scale.category20().domain(global_vtype_str);
+  this.ecolors = d3.scale.category20().domain(global_etype_str);
+
+  this.svg = d3.select(this.id).append("svg")
+    .attr("width", this.width + this.margin.left + this.margin.right)
+    .attr("height", this.height + this.margin.top + this.margin.bottom);
+
+  this.call_remote = function(wait, obj) {
+    rpc("breadth_first_search", 
+      {"wait_for_update": wait, "source": obj.source, "target": obj.dest, "strings": true, "get_types": true}, 
+      next_id(), 
+      (function(me) { return function(data) { return me.update(data, me); }; })(obj), null, obj.close, obj);
+  };
+
+  this.close = function() {
+    tools.splice(tools.indexOf(this),1);
+    $(this.id + 'accordion').fadeOut(300, function() { $(this).remove(); });
+    this.time_to_die = true;
+  };
+
+  this.update = function(data, obj) {
+    var graph = {'edges': [], 'vertices': [], 'vertices_arr' : []};
+    _.map(data.result.subgraph_str, function(d) {
+      add_v = function(s,d,t) {
+	if (!(s in graph.vertices)) {
+	  graph.vertices[s] = {'name': s, 'neighbors': [], 'level': -1, 'position': -1, 'type': ''};
+	  graph.vertices_arr.push(graph.vertices[s]);
+	}
+	if (!(d in graph.vertices)) {
+	  graph.vertices[d] = {'name': d, 'neighbors': [], 'level': -1, 'position': -1, 'type': ''};
+	  graph.vertices_arr.push(graph.vertices[d]);
+	}
+	graph.vertices[s].neighbors.push(d);
+	graph.edges.push([graph.vertices[s], graph.vertices[d], t]);
+      };
+      add_v(d[0],d[1],d[2]);
+    });
+    
+    _.each(data.result.vtypes_str, function(v,k) { graph.vertices[k].type = v; });
+
+    var queue = [];
+    
+    function dfs (v, depth) {
+      if (!(depth in queue)) {
+	queue[depth] = [];
+      }
+      if (!(_.contains(queue[depth], v))) {
+	graph.vertices[v].position = queue[depth].push(v)-1;
+	graph.vertices[v].level = depth;
+
+
+	for (var i = 0; i < graph.vertices[v].neighbors.length; i++) {
+	  dfs (graph.vertices[v].neighbors[i], depth+1);
+	}
+      }
+    }
+
+    dfs(this.dest, 0);
+
+    var vertex_key = this.svg.selectAll(".vertex_key").data(global_vtype_str);
+
+    vertex_key.enter().append("text")
+      .text(function(d,i) { if(i) return d; else return "Vertex Key:"; })
+      .style("fill-opacity",1e-6)
+      .style("stroke-opacity",1e-6)
+      .style("fill", (function(d) { return this.vcolors(d); }).bind(this))
+      .attr("text-anchor", "middle")
+      .attr("class", "vertex_key")
+      .attr("x", (function(d, i) { return this.margin.left + i * this.width / global_vtype_str.length; }).bind(this))
+      .attr("y", this.margin.top - 20)
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("fill-opacity",1)
+      .style("stroke-opacity",1);
+
+    var edge_key = this.svg.selectAll(".edge_key").data(global_etype_str);
+
+    edge_key.enter().append("text")
+      .text(function(d,i) { if(i) return d; else return "Edge Key:"; })
+      .style("fill-opacity",1e-6)
+      .style("stroke-opacity",1e-6)
+      .style("fill", (function(d) { return this.ecolors(d); }).bind(this))
+      .attr("text-anchor", "middle")
+      .attr("class", "edge_key")
+      .attr("x", (function(d, i) { return this.margin.left + i * this.width / global_vtype_str.length; }).bind(this))
+      .attr("y", this.margin.top - 35)
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("fill-opacity",1)
+      .style("stroke-opacity",1);
+
+    var level = this.svg.selectAll(".level").data(queue, function(d,i) {return i; });
+
+    level.transition()
+      .duration(750)
+      .attr("x1", (function (width, offset) {return function(d,i) {return offset + i * width};}) (this.width / (queue.length-1), this.margin.left))
+      .attr("y1", this.margin.top)
+      .attr("x2", (function (width, offset) {return function(d,i) {return offset + i * width};}) (this.width / (queue.length-1), this.margin.left))
+      .attr("y2", this.height - this.margin.bottom);
+
+    level.enter().append("line")
+      .style("fill-opacity",1e-6)
+      .style("stroke-opacity",1e-6)
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("fill-opacity",1)
+      .style("stroke-opacity",1)
+      .attr("class", "level")
+      .attr("x1", (function (width, offset) {return function(d,i) {return offset + i * width};}) (this.width / (queue.length-1), this.margin.left))
+      .attr("y1", this.margin.top)
+      .attr("x2", (function (width, offset) {return function(d,i) {return offset + i * width};}) (this.width / (queue.length-1), this.margin.left))
+      .attr("y2", this.height - this.margin.bottom)
+      .style("stroke-width", function(d) { return 1; });
+
+    level.exit().transition()
+      .duration(750)
+      .style("fill-opacity",1e-6)
+      .style("stroke-opacity",1e-6)
+      .remove();
+
+    var levellabel = this.svg.selectAll(".levellabel").data(queue, function(d,i) {return i; });
+
+    levellabel.transition()
+      .duration(750)
+      .attr("x", (function (width, offset) {return function(d,i) {return offset + i * width};}) (this.width / (queue.length-1), this.margin.left));
+
+    levellabel.enter().append("text")
+      .text(function(d,i) { return i; })
+      .style("fill-opacity",1e-6)
+      .style("stroke-opacity",1e-6)
+      .attr("text-anchor", "middle")
+      .attr("class", "levellabel")
+      .attr("x", (function (width, offset) {return function(d,i) {return offset + i * width};}) (this.width / (queue.length-1), this.margin.left))
+      .attr("y", this.margin.top-3)
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("fill-opacity",1)
+      .style("stroke-opacity",1);
+
+    levellabel.exit().transition()
+      .duration(750)
+      .style("fill-opacity",1e-6)
+      .style("stroke-opacity",1e-6)
+      .remove();
+
+    var link = this.svg.selectAll(".link").data(graph.edges, function(d) {return d[0].name + " " + d[1].name;});
+
+    link.transition()
+      .duration(750)
+      .attr("x1", (function (width, offset) {return function(d) {return offset + d[0].level * width};}) (this.width / (queue.length-1), this.margin.left))
+      .attr("y1", (function (height, queue, offset) {return function(d) {return offset + (d[0].position + 0.5) * (height / (queue[d[0].level].length))};}) (this.height, queue, this.margin.top))
+      .attr("x2", (function (width, offset) {return function(d) {return offset + d[1].level * width};}) (this.width / (queue.length-1), this.margin.left))
+      .attr("y2", (function (height, queue, offset) {return function(d) {return offset + (d[1].position + 0.5) * (height / (queue[d[1].level].length))};}) (this.height, queue, this.margin.top));
+
+    link.enter().append("line")
+      .style("fill-opacity",1e-6)
+      .style("stroke-opacity",1e-6)
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("fill-opacity",1)
+      .style("stroke-opacity",1)
+      .style("stroke", (function(d) { return this.ecolors(d[2]); }).bind(this))
+      .attr("class", "link")
+      .attr("x1", (function (width, offset) {return function(d) {return offset + d[0].level * width};}) (this.width / (queue.length-1), this.margin.left))
+      .attr("y1", (function (height, queue, offset) {return function(d) {return offset + (d[0].position + 0.5) * (height / (queue[d[0].level].length))};}) (this.height, queue, this.margin.top))
+      .attr("x2", (function (width, offset) {return function(d) {return offset + d[1].level * width};}) (this.width / (queue.length-1), this.margin.left))
+      .attr("y2", (function (height, queue, offset) {return function(d) {return offset + (d[1].position + 0.5) * (height / (queue[d[1].level].length))};}) (this.height, queue, this.margin.top))
+      .style("stroke-width", function(d) { return 3; });
+
+    link.append("title")
+      .text(function(d) { return d[0].name + ', ' + d[1].name + ' (' + d[2] + ')'; });
+
+    link.exit().transition()
+      .duration(750)
+      .style("fill-opacity",1e-6)
+      .style("stroke-opacity",1e-6)
+      .remove();
+
+    var node = this.svg.selectAll(".node").data(_.compact(graph.vertices_arr), function(d) {return d.name;});
+
+    node
+      .on("click", function(d) { window.open("http://twitter.com/" + d.name, "_blank"); })
+
+    node.transition()
+      .duration(750)
+      .attr("cx", (function (width, offset) {return function(d) {return offset + d.level * width};}) (this.width / (queue.length-1), this.margin.left))
+      .attr("cy", (function (height, queue, offset) {return function(d) {return offset + (d.position + 0.5) * (height / (queue[d.level].length))};}) (this.height, queue, this.margin.top));
+
+    node.enter().append("circle")
+      .style("fill-opacity",1e-6)
+      .style("stroke-opacity",1e-6)
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("fill-opacity",1)
+      .style("stroke-opacity",1)
+      .attr("class", "node")
+      .attr("cx", (function (width, offset) {return function(d) {return offset + d.level * width};}) (this.width / (queue.length-1), this.margin.left))
+      .attr("cy", (function (height, queue, offset) {return function(d) {return offset + (d.position + 0.5) * (height / (queue[d.level].length))};}) (this.height, queue, this.margin.top))
+      .attr("r", this.radius)
+      .style("fill", (function(d) { return this.vcolors(d.type); }).bind(this));
+
+
+    node.append("title")
+      .text(function(d) { return d.name + ' (' + d.type + ')'; });
+
+    node.exit().transition().delay(750)
+      .style("fill-opacity",1e-6)
+      .style("stroke-opacity",1e-6)
+      .remove();
+
+    var nodelabel = this.svg.selectAll(".nodelabel").data(_.compact(graph.vertices_arr), function(d) {return d.name;});
+
+    nodelabel.transition()
+      .duration(750)
+      .attr("x", (function (width, offset) {return function(d) {return offset + d.level * width};}) (this.width / (queue.length-1), this.margin.left))
+      .attr("y", (function (height, queue, offset) {return function(d) {return offset + (d.position + 0.5) * (height / (queue[d.level].length))};}) (this.height, queue, this.margin.top - this.radius - 3));
+
+    nodelabel.enter().append("text")
+      .style("fill-opacity",1e-6)
+      .style("stroke-opacity",1e-6)
+      .transition()
+      .delay(750)
+      .duration(750)
+      .style("fill-opacity",1)
+      .style("stroke-opacity",1)
+      .attr("class", "nodelabel")
+      .text(function(d) { return d.name; })
+      .attr("x", (function (width, offset) {return function(d) {return offset + d.level * width};}) (this.width / (queue.length-1), this.margin.left))
+      .attr("y", (function (height, queue, offset) {return function(d) {return offset + (d.position + 0.5) * (height / (queue[d.level].length))};}) (this.height, queue, this.margin.top - this.radius - 3))
+      .attr("text-anchor", "middle");
+
+    nodelabel.exit().transition().delay(750)
+      .style("fill-opacity",1e-6)
+      .style("stroke-opacity",1e-6)
+      .remove();
+
+    if(!this.time_to_die)
+      this.call_remote(true, obj);
+  }
+
+  this.call_remote(false, this);
+}
+
+/***************************************************
+ * LABEL GRAPH
+ */
+  function LabelGraph(tools, id, alg, field, vtx) {
+    this.parent_id = id;
+    this.id = id + tools.length;
+    this.alg = alg;
+    this.field = field;
+    this.vtx = vtx;
+    this.time_to_die = false;
+
+    this.width = 960,
+    this.height = 400;
+
+    this.nodes = [];
+    this.links = [];
+    this.graph = {vertices:{}, links: this.links, nodes:this.nodes};
+    this.color = d3.scale.category20();
+
+    add_tool_win(this.parent_id, this.id, "Label Graph of " + vtx + " (" + alg + ", " + field + ")", this);
+
+    this.force = d3.layout.force()
+      .charge(-120)
+      .linkDistance(30)
+      .size([this.width, this.height]);
+
+    this.svg = d3.select(this.id).append("svg")
+      .attr("width", this.width)
+      .attr("height", this.height);
+
+    this.node = this.svg.selectAll(".node");
+    this.link = this.svg.selectAll(".link");
+
+    this.start = function() {
+      this.node = this.svg.selectAll(".node");
+      this.link = this.svg.selectAll(".link");
+
+      this.link = this.link.data(this.links, function(d) { return d.source.id + "-" + d.target.id; });
+      this.link.enter().insert("line", ".node").attr("class", "link");
+      this.link.exit().remove();
+
+      this.node = this.node.data(this.nodes, function(d) { return d.id;});
+      this.node.enter().append("circle").attr("class", function(d) { return "node " + d.id; }).attr("r", 8).call(this.force.drag)
+	.style("fill", (function(colors) {return function(d) { return colors(d.group); }}) (this.color))
+	.append("title")
+	.text(function(d) { return d.id; });
+      this.node.exit().remove();
+
+      this.force
+	.nodes(this.nodes)
+	.links(this.links)
+	.on("tick", (function(obj) { return function() {
+	  obj.node.attr("cx", function(d) { return d.x; })
+	    .attr("cy", function(d) { return d.y; })
+
+	  obj.link.attr("x1", function(d) { return d.source.x; })
+	    .attr("y1", function(d) { return d.source.y; })
+	    .attr("x2", function(d) { return d.target.x; })
+	    .attr("y2", function(d) { return d.target.y; });
+	}; })(this));
+
+      this.force.start();
+    }
+
+
+    this.close = function() {
+      tools.splice(tools.indexOf(this),1);
+      $(this.id + 'accordion').fadeOut(300, function() { $(this).remove(); });
+      this.time_to_die = true;
+      if('force' in this) {
+	this.force.stop();
+      }
+    }
+
+    this.register = function(data, graph, obj) {
+      var subgraph = data.result.subgraph_str;
+      obj.graph = {vertices:{}, links: this.links, nodes:this.nodes};
+
+      for(e = 0; e < subgraph.length; e++) {
+	src = subgraph[e][0];
+	dest = subgraph[e][1];
+
+	if(!(src in graph.vertices)) {
+	  graph.vertices[src] = {'id': src, 'neighbors': {}, 'in_arr':''};
+	  graph.vertices[src]['in_arr'] = graph.nodes[graph.nodes.push(graph.vertices[src])];
+	}
+	if(!(dest in graph.vertices)) {
+	  graph.vertices[dest] = {'id': dest, 'neighbors': {}, 'in_arr':''};
+	  graph.vertices[dest]['in_arr'] = graph.nodes[graph.nodes.push(graph.vertices[dest])];
+	}
+
+	if(!(src in graph.vertices[dest].neighbors)) {
+	  graph.vertices[dest].neighbors[src] = graph.links[graph.links.push({source: graph.vertices[dest], target: graph.vertices[src], value: 1})];
+	}
+
+	if(!(dest in graph.vertices[src].neighbors)) {
+	  graph.vertices[src].neighbors[dest] = graph.links[graph.links.push({source: graph.vertices[src], target: graph.vertices[dest], value: 1})];
+	}
+      }
+
+      obj.start();
+
+      rpc("request", {"wait_for_update": true, "session_id": data.result.session_id, "strings":true}, next_id(), 
+	(function(update, graph, obj, session_id) { return function(data) { update(data, graph, obj, session_id); }; })(obj.update, obj.graph, obj, data.result.session_id), null, obj.close, obj);
+    }
+
+    rpc("register", {"type": "subgraph", "name": this.alg, "data": this.field, "source": _.trim(this.vtx), "strings":true}, next_id(), 
+      (function(register, graph, start) { return function(data) { register(data, graph, start); }; })(this.register,this.graph, this), null, this.close, this);
+  }
+
+/***************************************************
+ * LABEL SUBGRAPH
+ */
+  function LabelSubgraph(tools, id, alg, field, vtx, limit) {
+    this.parent_id = id;
+    this.id = id + tools.length;
+    this.alg = alg;
+    this.field = field;
+    this.vtx = vtx;
+    this.limit = parseInt(_.trim(limit));
+    this.time_to_die = false;
+
+    this.width = 960,
+    this.height = 400;
+
+    this.nodes = [];
+    this.links = [];
+    this.graph = {vertices:{}, links: this.links, nodes:this.nodes};
+    this.color = d3.scale.category20();
+
+    add_tool_win(this.parent_id, this.id, "Label Subgraph of " + vtx + " (" + alg + ", " + field + ", " + limit + ")", this);
+
+    this.force = d3.layout.force()
+      .charge(-120)
+      .linkDistance(30)
+      .size([this.width, this.height]);
+
+    this.svg = d3.select(this.id).append("svg")
+      .attr("width", this.width)
+      .attr("height", this.height);
+
+    this.node = this.svg.selectAll(".node");
+    this.link = this.svg.selectAll(".link");
+
+    this.start = function() {
+      this.node = this.svg.selectAll(".node");
+      this.link = this.svg.selectAll(".link");
+
+      this.link = this.link.data(this.links, function(d) { return d.source.id + "-" + d.target.id; });
+      this.link.enter().insert("line", ".node").attr("class", "link");
+      this.link.exit().remove();
+
+      this.node = this.node.data(this.nodes, function(d) { return d.id;});
+      this.node.enter().append("circle").attr("class", function(d) { return "node " + d.id; }).attr("r", 8).call(this.force.drag)
+	.style("fill", (function(colors) {return function(d) { return colors(d.group); }}) (this.color))
+	.append("title")
+	.text(function(d) { return d.id; });
+      this.node.exit().remove();
+
+      this.force
+	.nodes(this.nodes)
+	.links(this.links)
+	.on("tick", (function(obj) { return function() {
+	  obj.node.attr("cx", function(d) { return d.x; })
+	    .attr("cy", function(d) { return d.y; })
+
+	  obj.link.attr("x1", function(d) { return d.source.x; })
+	    .attr("y1", function(d) { return d.source.y; })
+	    .attr("x2", function(d) { return d.target.x; })
+	    .attr("y2", function(d) { return d.target.y; });
+	}; })(this));
+
+      this.force.start();
+    }
+
+
+    this.close = function() {
+      tools.splice(tools.indexOf(this),1);
+      $(this.id + 'accordion').fadeOut(300, function() { $(this).remove(); });
+      this.time_to_die = true;
+      if('force' in this) {
+	this.force.stop();
+      }
+    }
+
+    this.register = function(data, graph, obj) {
+      var subgraph = data.result.subgraph_str;
+
+      for(e = 0; e < subgraph.length; e++) {
+	src = subgraph[e][0];
+	dest = subgraph[e][1];
+
+	if(!(src in graph.vertices)) {
+	  graph.vertices[src] = {'id': src, 'neighbors': {}, 'in_arr':''};
+	  graph.vertices[src]['in_arr'] = graph.nodes[graph.nodes.push(graph.vertices[src])];
+	}
+	if(!(dest in graph.vertices)) {
+	  graph.vertices[dest] = {'id': dest, 'neighbors': {}, 'in_arr':''};
+	  graph.vertices[dest]['in_arr'] = graph.nodes[graph.nodes.push(graph.vertices[dest])];
+	}
+
+	if(!(src in graph.vertices[dest].neighbors)) {
+	  graph.vertices[dest].neighbors[src] = graph.links[graph.links.push({source: graph.vertices[dest], target: graph.vertices[src], value: 1})];
+	}
+
+	if(!(dest in graph.vertices[src].neighbors)) {
+	  graph.vertices[src].neighbors[dest] = graph.links[graph.links.push({source: graph.vertices[src], target: graph.vertices[dest], value: 1})];
+	}
+      }
+
+      obj.start();
+
+      rpc("label_breadth_first_search", {"wait_for_update": true, "source": obj.vtx, "name": obj.alg, "data": obj.field, "limit": obj.limit, "get_types": true, "strings":true}, next_id(), 
+	(function(update, graph, obj) { return function(data) { update(data, graph, obj); }; })(obj.register, obj.graph, obj), null, obj.close, obj);
+    }
+
+    this.update = function(data, graph, obj) {
+      var insertions = data.result.insertions_str;
+      var deletions = data.result.deletions_str;
+
+      for(e = 0; e < deletions.length; e++) {
+	src = deletions[e][0];
+	dest = deletion[e][1];
+
+	if(dest in graph.vertices) {
+	  if(src in graph.vertices[dest].neighbors) {
+	    graph.links.splice(graph.links.indexOf(graph.vertices[dest].neighbors[src]),1);
+	    delete graph.vertice[dest].neighbors[src];
+
+	    if(graph.vertices[dest].neighbors.length < 1) {
+	      graph.nodes.splice(graph.nodes.indexOf(graph.vertices[dest]['in_addr']),1);
+	      delete graph.vertices[dest];
+	    }
+	  }
+	}
+
+	if(src in graph.vertices) {
+	  if(dest in graph.vertices[src].neighbors) {
+	    graph.links.splice(graph.links.indexOf(graph.vertices[src].neighbors[dest]),1);
+	    delete graph.vertice[src].neighbors[dest];
+
+	    if(graph.vertices[src].neighbors.length < 1) {
+	      graph.nodes.splice(graph.nodes.indexOf(graph.vertices[src]['in_addr']),1);
+	      delete graph.vertices[src];
+	    }
+	  }
+	}
+      }
+
+      for(e = 0; e < insertions.length; e++) {
+	src = insertions[e][0];
+	dest = insertions[e][1];
+
+	if(!(src in graph.vertices)) {
+	  graph.vertices[src] = {'id': src, 'neighbors': {}, 'in_arr':''};
+	  graph.vertices[src]['in_arr'] = graph.nodes[graph.nodes.push(graph.vertices[src])];
+	}
+	if(!(dest in graph.vertices)) {
+	  graph.vertices[dest] = {'id': dest, 'neighbors': {}, 'in_arr':''};
+	  graph.vertices[dest]['in_arr'] = graph.nodes[graph.nodes.push(graph.vertices[dest])];
+	}
+
+	if(!(src in graph.vertices[dest].neighbors)) {
+	  graph.vertices[dest].neighbors[src] = graph.links[graph.links.push({source: graph.vertices[dest], target: graph.vertices[src], value: 1})];
+	}
+
+	if(!(dest in graph.vertices[src].neighbors)) {
+	  graph.vertices[src].neighbors[dest] = graph.links[graph.links.push({source: graph.vertices[src], target: graph.vertices[dest], value: 1})];
+	}
+      }
+
+      obj.start();
+
+      if(!obj.time_to_die)
+	rpc("label_breadth_first_search", {"wait_for_update": true, "source": obj.vtx, "name": obj.alg, "data": obj.field, "limit": obj.limit, "get_types": true, "strings":true}, next_id(), 
+	  (function(update, graph, obj) { return function(data) { update(data, graph, obj); }; })(obj.update, obj.graph, obj), null, obj.close, obj);
+    }
+
+    rpc("label_breadth_first_search", {"wait_for_update": true, "source": this.vtx, "name": this.alg, "data": this.field, "limit": this.limit, "get_types": true, "strings":true}, next_id(), 
+      (function(register, graph, start) { return function(data) { register(data, graph, start); }; })(this.register,this.graph, this), null, this.close, this);
+  }
+
+/***************************************************
+ * GROUP GRAPH
+ */
+  function GroupGraph(tools, id, vtx) {
+    this.parent_id = id;
+    this.id = id + tools.length;
+    this.vtx = vtx;
+    this.time_to_die = false;
+
+    this.width = 960,
+    this.height = 400;
+
+    this.nodes = [];
+    this.links = [];
+    this.graph = {vertices:{}, links: this.links, nodes:this.nodes};
+    this.color = d3.scale.category20();
+
+    add_tool_win(this.parent_id, this.id, "Group Graph of " + vtx, this);
+
+    this.force = d3.layout.force()
+      .charge(-120)
+      .linkDistance(30)
+      .size([this.width, this.height]);
+
+    this.svg = d3.select(this.id).append("svg")
+      .attr("width", this.width)
+      .attr("height", this.height);
+
+    this.node = this.svg.selectAll(".node");
+    this.link = this.svg.selectAll(".link");
+
+    this.start = function() {
+      this.node = this.svg.selectAll(".node");
+      this.link = this.svg.selectAll(".link");
+
+      this.link = this.link.data(this.links, function(d) { return d.source.id + "-" + d.target.id; });
+      this.link.enter().insert("line", ".node").attr("class", "link");
+      this.link.exit().remove();
+
+      this.node = this.node.data(this.nodes, function(d) { return d.id;});
+      this.node.enter().append("circle").attr("class", function(d) { return "node " + d.id; }).attr("r", 8).call(this.force.drag)
+	.style("fill", (function(colors) {return function(d) { if (_.indexOf(source, d.id) != -1) return "#ff7f0e"; else return colors(d.group); }}) (this.color))
+	.append("title")
+	.text(function(d) { return d.id; });
+      this.node.exit().remove();
+
+      this.force
+	.nodes(this.nodes)
+	.links(this.links)
+	.on("tick", (function(obj) { return function() {
+	  obj.node.attr("cx", function(d) { return d.x; })
+	    .attr("cy", function(d) { return d.y; })
+
+	  obj.link.attr("x1", function(d) { return d.source.x; })
+	    .attr("y1", function(d) { return d.source.y; })
+	    .attr("x2", function(d) { return d.target.x; })
+	    .attr("y2", function(d) { return d.target.y; });
+	}; })(this));
+
+      this.force.start();
+    }
+
+
+    this.close = function() {
+      tools.splice(tools.indexOf(this),1);
+      $(this.id + 'accordion').fadeOut(300, function() { $(this).remove(); });
+      this.time_to_die = true;
+      this.force.stop();
+    }
+
+    this.register = function(data, graph, obj) {
+      var subgraph = data.result.subgraph_str;
+
+      for(e = 0; e < subgraph.length; e++) {
+	src = subgraph[e][0];
+	dest = subgraph[e][1];
+
+	if(!(src in graph.vertices)) {
+	  graph.vertices[src] = {'id': src, 'neighbors': {}, 'in_arr':''};
+	  graph.vertices[src]['in_arr'] = graph.nodes[graph.nodes.push(graph.vertices[src])];
+	}
+	if(!(dest in graph.vertices)) {
+	  graph.vertices[dest] = {'id': dest, 'neighbors': {}, 'in_arr':''};
+	  graph.vertices[dest]['in_arr'] = graph.nodes[graph.nodes.push(graph.vertices[dest])];
+	}
+
+	if(!(src in graph.vertices[dest].neighbors)) {
+	  graph.vertices[dest].neighbors[src] = graph.links[graph.links.push({source: graph.vertices[dest], target: graph.vertices[src], value: 1})];
+	}
+
+	if(!(dest in graph.vertices[src].neighbors)) {
+	  graph.vertices[src].neighbors[dest] = graph.links[graph.links.push({source: graph.vertices[src], target: graph.vertices[dest], value: 1})];
+	}
+      }
+
+      obj.start();
+
+      rpc("request", {"wait_for_update": true, "session_id": data.result.session_id, "strings":true}, next_id(), 
+	(function(update, graph, obj, session_id) { return function(data) { update(data, graph, obj, session_id); }; })(obj.update, obj.graph, obj, data.result.session_id), null, obj.close, obj);
+    }
+
+    this.update = function(data, graph, obj, session_id) {
+      var insertions = data.result.insertions_str;
+      var deletions = data.result.deletions_str;
+
+      for(e = 0; e < deletions.length; e++) {
+	src = deletions[e][0];
+	dest = deletsion[e][1];
+
+	if(dest in graph.vertices) {
+	  if(src in graph.vertices[dest].neighbors) {
+	    graph.links.splice(graph.links.indexOf(graph.vertices[dest].neighbors[src]),1);
+	    delete graph.vertice[dest].neighbors[src];
+
+	    if(graph.vertices[dest].neighbors.length < 1) {
+	      graph.nodes.splice(graph.nodes.indexOf(graph.vertices[dest]['in_addr']),1);
+	      delete graph.vertices[dest];
+	    }
+	  }
+	}
+
+	if(src in graph.vertices) {
+	  if(dest in graph.vertices[src].neighbors) {
+	    graph.links.splice(graph.links.indexOf(graph.vertices[src].neighbors[dest]),1);
+	    delete graph.vertice[src].neighbors[dest];
+
+	    if(graph.vertices[src].neighbors.length < 1) {
+	      graph.nodes.splice(graph.nodes.indexOf(graph.vertices[src]['in_addr']),1);
+	      delete graph.vertices[src];
+	    }
+	  }
+	}
+      }
+
+      for(e = 0; e < insertions.length; e++) {
+	src = insertions[e][0];
+	dest = insertions[e][1];
+
+	if(!(src in graph.vertices)) {
+	  graph.vertices[src] = {'id': src, 'neighbors': {}, 'in_arr':''};
+	  graph.vertices[src]['in_arr'] = graph.nodes[graph.nodes.push(graph.vertices[src])];
+	}
+	if(!(dest in graph.vertices)) {
+	  graph.vertices[dest] = {'id': dest, 'neighbors': {}, 'in_arr':''};
+	  graph.vertices[dest]['in_arr'] = graph.nodes[graph.nodes.push(graph.vertices[dest])];
+	}
+
+	if(!(src in graph.vertices[dest].neighbors)) {
+	  graph.vertices[dest].neighbors[src] = graph.links[graph.links.push({source: graph.vertices[dest], target: graph.vertices[src], value: 1})];
+	}
+
+	if(!(dest in graph.vertices[src].neighbors)) {
+	  graph.vertices[src].neighbors[dest] = graph.links[graph.links.push({source: graph.vertices[src], target: graph.vertices[dest], value: 1})];
+	}
+      }
+
+      obj.start();
+
+      if(!obj.time_to_die)
+	rpc("request", {"wait_for_update": true, "session_id": session_id, "strings":true}, next_id(), 
+	  (function(update, graph, obj, session_id) { return function(data) { update(data, graph, obj, session_id); }; })(obj.update, obj.graph, obj, session_id), null, obj.close, obj);
+    }
+
+    var source_str = _.trim(this.vtx);
+    var source = [];
+    if(-1 != source_str.indexOf(",")) {
+      source = source_str.split(',');
+    } else {
+      source = source_str.split(' ');
+    }
+
+    rpc("register", {"type": "vertex_event_notifier", "set": source, "strings":true}, next_id(), 
+      (function(register, graph, start) { return function(data) { register(data, graph, start); }; })(this.register,this.graph, this), null, this.close, this);
+  }
+
+</script>    
+</div>																																      </div> 
+
+</body>
+</html>

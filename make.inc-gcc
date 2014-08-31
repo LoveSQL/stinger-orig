@@ -1,8 +1,0 @@
-CC=gcc -std=gnu9x
-CXX=g++
-CFLAGS=-g -O2 -Wall -Wno-unused-function -Wno-unused-variable -Wno-pointer-sign
-LDLIBS=-lm
-ifeq ($(shell uname -s),Darwin)
-else
-  LDLIBS+= -lrt
-endif

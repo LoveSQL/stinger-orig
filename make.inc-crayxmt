@@ -1,6 +1,0 @@
-CC=cc -DNDEBUG -DMTA_STREAMS="\"mta use 70 streams\"" -O2
-CXX=c++
-CFLAGS= -w
-LDLIBS=-lm -lprand -lrt
-USE_GETOPT_NETBSD=YesPlease
-FOR_XMT=AlasYes
